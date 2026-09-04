@@ -691,6 +691,6 @@ git commit -m "ci: verify React Tauri dashboard Windows build"
 ## Self-Review
 
 - Spec coverage: Tasks 1–9 cover foundation, fixed assets, shell, all Dashboard sections, responsive visual testing, Windows Tauri packaging and executable smoke verification.
-- Placeholder scan: no TODO/TBD/implementation-later instructions remain.
+- Placeholder scan: no incomplete or deferred implementation instructions remain.
 - Type consistency: `referenceAssets`, `DashboardFixture`, `dashboardFixture`, and `Dashboard` are defined once and reused consistently.
 - Scope check: this plan deliberately ends at Dashboard visual approval and does not include business logic.
