@@ -21,10 +21,26 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -v
       - name: Ruff
-        run: python -m ruff check src tests
+        run: python -m ruff check src tests tools
       - name: Compile
-        run: python -m compileall -q src
+        run: python -m compileall -q src tools
       - name: Smoke
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m gold_label_studio --smoke-test
+      - name: Capture dashboard
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python tools/capture_ui.py
+      - name: Upload dashboard screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-dashboard
+          path: artifacts/phase1-dashboard.png
+      - name: Build Windows application
+        run: python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --output-dir=dist src/gold_label_studio/__main__.py
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gold-Label-Studio-Pro-Phase1-Windows
+          path: dist/__main__.dist/
