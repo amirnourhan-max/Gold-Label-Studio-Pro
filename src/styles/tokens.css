@@ -15,5 +15,7 @@
   --sidebar:218px;
   --topbar:62px;
   --footer:42px;
-  font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+  --font-fa:"B Titr","BTitr","B Titr Bold",Tahoma,"Segoe UI",Arial,sans-serif;
+  --font-latin:"Segoe UI",Arial,sans-serif;
+  font-family:var(--font-fa);
 }
