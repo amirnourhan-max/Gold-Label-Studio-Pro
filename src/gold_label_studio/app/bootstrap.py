@@ -2,7 +2,7 @@ import logging
 import sys
 from collections.abc import Sequence
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication
 
 from gold_label_studio.app.logging_config import configure_logging
