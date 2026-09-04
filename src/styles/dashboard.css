@@ -158,7 +158,7 @@
   pointer-events:none;
 }
 .category-art-frame{min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:5px 8px 1px;background:radial-gradient(circle at 50% 58%,#c8942718 0,transparent 58%)}
-.category-art{width:100%;height:100%;max-width:178px;max-height:96px;object-fit:contain;display:block;filter:drop-shadow(0 5px 10px #0009) saturate(1.08) contrast(1.04);position:relative;z-index:1}
+.category-art{width:min(92%,178px);aspect-ratio:5/3;max-height:96px;background-repeat:no-repeat;background-size:700% 100%;display:block;filter:drop-shadow(0 5px 10px #0009) saturate(1.08) contrast(1.04);position:relative;z-index:1}
 .category-card b{font-size:8.8px;position:relative;z-index:1}
 .category-card small{font-size:6.7px;color:#758a9d;position:relative;z-index:1}
 
@@ -188,7 +188,7 @@
   .dashboard-top,.analytics-grid,.operations-grid{gap:7px}
   .metric-card{padding:8px 10px 7px}
   .metric-main strong{font-size:19px}
-  .category-art{max-width:145px}
+  .category-art{width:min(90%,150px)}
 }
 @media(max-width:1180px){
   .dashboard{
@@ -211,7 +211,7 @@
     grid-auto-rows:245px;
   }
   .queue-panel{grid-column:1 / -1}
-  .category-art{max-width:155px}
+  .category-art{width:min(90%,155px)}
 }
 @media(max-width:900px){
   .dashboard-top{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -227,5 +227,5 @@
   .activity-row{height:28px}
   .quick-grid button span{width:34px;height:34px}
   .category-card{grid-template-rows:minmax(0,1fr) 12px 9px}
-  .category-art{max-width:132px}
+  .category-art{width:min(88%,136px)}
 }

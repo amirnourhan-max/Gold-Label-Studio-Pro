@@ -2,6 +2,7 @@ name: React Tauri Dashboard CI
 on:
   push:
     branches: [react-tauri-dashboard]
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -10,21 +11,95 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - uses: dtolnay/rust-toolchain@stable
-      - run: npm install
-      - run: npm run test:run
-      - run: npm run build
-      - run: cargo test --manifest-path src-tauri/Cargo.toml
-      - run: npm run tauri build -- --no-bundle
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Frontend tests
+        run: npm run test:run
+
+      - name: Frontend production build
+        run: npm run build
+
+      - name: Validate Tauri window permissions
+        shell: powershell
+        run: |
+          $cap = Get-Content "src-tauri/capabilities/default.json" -Raw | ConvertFrom-Json
+          $required = @(
+            "core:window:allow-close",
+            "core:window:allow-minimize",
+            "core:window:allow-toggle-maximize",
+            "core:window:allow-start-dragging"
+          )
+          foreach ($permission in $required) {
+            if ($cap.permissions -notcontains $permission) {
+              throw "Missing required Tauri permission: $permission"
+            }
+          }
+
+      - name: Capture visual checks
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path visual-checks | Out-Null
+          $server = Start-Process -FilePath "cmd.exe" -ArgumentList "/c","npm run preview -- --host 127.0.0.1 --port 4173" -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 45; $i++) {
+              try {
+                $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4173" -TimeoutSec 2
+                if ($response.StatusCode -eq 200) { $ready = $true; break }
+              } catch {}
+              Start-Sleep -Seconds 1
+            }
+            if (-not $ready) { throw "Vite preview did not become ready" }
+
+            $edge = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+            if (!(Test-Path $edge)) {
+              $edge = "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+            }
+            if (!(Test-Path $edge)) { throw "Microsoft Edge executable not found" }
+
+            & $edge --headless --disable-gpu --hide-scrollbars --window-size=1600,900 --screenshot="$pwd\visual-checks\dashboard-1600x900.png" http://127.0.0.1:4173
+            if ($LASTEXITCODE -ne 0) { throw "1600x900 screenshot failed" }
+
+            & $edge --headless --disable-gpu --hide-scrollbars --window-size=1366,768 --screenshot="$pwd\visual-checks\dashboard-1366x768.png" http://127.0.0.1:4173
+            if ($LASTEXITCODE -ne 0) { throw "1366x768 screenshot failed" }
+
+            & $edge --headless --disable-gpu --hide-scrollbars --window-size=1920,1080 --screenshot="$pwd\visual-checks\dashboard-1920x1080.png" http://127.0.0.1:4173
+            if ($LASTEXITCODE -ne 0) { throw "1920x1080 screenshot failed" }
+          } finally {
+            if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
+          }
+
+      - name: Upload visual checks
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gold-Label-Studio-Pro-Visual-Checks
+          path: visual-checks/*.png
+
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Tauri Windows build
+        run: npm run tauri build -- --no-bundle
+
       - name: Smoke packaged executable
         shell: powershell
         run: |
           $exe = "src-tauri\target\release\gold-label-studio-pro.exe"
           if (!(Test-Path $exe)) { throw "Executable not found: $exe" }
           $p = Start-Process $exe -PassThru
-          Start-Sleep -Seconds 5
+          Start-Sleep -Seconds 6
           if ($p.HasExited) { throw "Gold Label Studio Pro exited during smoke launch" }
+          if ($p.MainWindowHandle -eq 0) {
+            Start-Sleep -Seconds 4
+            $p.Refresh()
+          }
+          if ($p.MainWindowHandle -eq 0) { throw "Main window handle was not created" }
           Stop-Process -Id $p.Id -Force
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload Windows preview
+        uses: actions/upload-artifact@v4
         with:
           name: Gold-Label-Studio-Pro-React-Tauri-Preview
           path: src-tauri/target/release/gold-label-studio-pro.exe
