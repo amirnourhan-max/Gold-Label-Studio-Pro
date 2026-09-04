@@ -3,7 +3,26 @@
   "productName":"Gold Label Studio Pro",
   "version":"0.2.0",
   "identifier":"com.amirnourhan.goldlabelstudiopro",
-  "build":{"beforeDevCommand":"npm run dev","devUrl":"http://localhost:1420","beforeBuildCommand":"npm run build","frontendDist":"../dist"},
-  "app":{"windows":[{"label":"main","title":"Gold Label Studio Pro","width":1600,"height":900,"minWidth":1366,"minHeight":768,"resizable":true,"fullscreen":false}],"security":{"csp":null}},
+  "build":{
+    "beforeDevCommand":"npm run dev",
+    "devUrl":"http://localhost:1420",
+    "beforeBuildCommand":"npm run build",
+    "frontendDist":"../dist"
+  },
+  "app":{
+    "windows":[{
+      "label":"main",
+      "title":"Gold Label Studio Pro",
+      "width":1600,
+      "height":900,
+      "minWidth":1024,
+      "minHeight":640,
+      "resizable":true,
+      "fullscreen":false,
+      "decorations":false,
+      "center":true
+    }],
+    "security":{"csp":null}
+  },
   "bundle":{"active":false}
 }
