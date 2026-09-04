@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import capabilities from "../../../src-tauri/capabilities/default.json";
 import { Topbar } from "./Topbar";
@@ -21,19 +21,21 @@ describe("custom desktop titlebar", () => {
   });
 
   it("renders dark integrated window controls and a drag region", () => {
-    render(<Topbar />);
-    expect(screen.getByTestId("window-drag-region")).toHaveAttribute("data-tauri-drag-region");
-    expect(screen.getByRole("button", { name: "کمینه" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "بزرگ‌نمایی" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "بستن" })).toBeInTheDocument();
+    const view = render(<Topbar />);
+    const ui = within(view.container);
+    expect(ui.getByTestId("window-drag-region")).toHaveAttribute("data-tauri-drag-region");
+    expect(ui.getByRole("button", { name: "کمینه" })).toBeInTheDocument();
+    expect(ui.getByRole("button", { name: "بزرگ‌نمایی" })).toBeInTheDocument();
+    expect(ui.getByRole("button", { name: "بستن" })).toBeInTheDocument();
   });
 
   it("routes minimize, maximize and close clicks to the Tauri window API", async () => {
-    render(<Topbar />);
+    const view = render(<Topbar />);
+    const ui = within(view.container);
 
-    fireEvent.click(screen.getByRole("button", { name: "کمینه" }));
-    fireEvent.click(screen.getByRole("button", { name: "بزرگ‌نمایی" }));
-    fireEvent.click(screen.getByRole("button", { name: "بستن" }));
+    fireEvent.click(ui.getByRole("button", { name: "کمینه" }));
+    fireEvent.click(ui.getByRole("button", { name: "بزرگ‌نمایی" }));
+    fireEvent.click(ui.getByRole("button", { name: "بستن" }));
 
     await waitFor(() => {
       expect(windowMocks.minimize).toHaveBeenCalledTimes(1);
