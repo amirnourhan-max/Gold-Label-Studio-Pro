@@ -1,0 +1,18 @@
+name: React Tauri Dashboard CI
+
+on:
+  push:
+    branches: [react-tauri-dashboard]
+
+jobs:
+  frontend-red-gate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Test
+        run: npm run test:run
