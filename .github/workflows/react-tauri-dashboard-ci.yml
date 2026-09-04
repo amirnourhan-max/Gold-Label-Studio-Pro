@@ -54,36 +54,15 @@ jobs:
             if (-not $ready) { throw "Vite preview did not become ready" }
 
             $edge = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-            if (!(Test-Path $edge)) {
-              $edge = "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
-            }
+            if (!(Test-Path $edge)) { $edge = "C:\Program Files\Microsoft\Edge\Application\msedge.exe" }
             if (!(Test-Path $edge)) { throw "Microsoft Edge executable not found" }
 
-            $shots = @(
-              @{ Size = "1600,900"; File = "dashboard-1600x900.png" },
-              @{ Size = "1366,768"; File = "dashboard-1366x768.png" },
-              @{ Size = "1920,1080"; File = "dashboard-1920x1080.png" }
-            )
-            foreach ($shot in $shots) {
-              $output = Join-Path $pwd ("visual-checks\" + $shot.File)
-              $profile = Join-Path $pwd ("edge-profile-" + $shot.File.Replace(".png",""))
-              $edgeArgs = @(
-                "--headless",
-                "--disable-gpu",
-                "--hide-scrollbars",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--user-data-dir=" + $profile,
-                "--window-size=" + $shot.Size,
-                "--screenshot=" + $output,
-                "http://127.0.0.1:4173"
-              )
-              & $edge @edgeArgs | Out-Null
-              for ($wait = 0; $wait -lt 30 -and !(Test-Path $output); $wait++) {
-                Start-Sleep -Milliseconds 500
-              }
-              if (!(Test-Path $output)) { throw ("Screenshot was not created: " + $shot.File) }
+            $output = "$pwd\visual-checks\dashboard-1600x900.png"
+            & $edge --headless --disable-gpu --hide-scrollbars --window-size=1600,900 --screenshot="$output" http://127.0.0.1:4173 | Out-Null
+            for ($wait = 0; $wait -lt 30 -and !(Test-Path $output); $wait++) {
+              Start-Sleep -Milliseconds 500
             }
+            if (!(Test-Path $output)) { throw "Dashboard screenshot was not created" }
           } finally {
             if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
           }
