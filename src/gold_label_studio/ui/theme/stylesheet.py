@@ -18,6 +18,9 @@ QToolTip {{
     border: 1px solid {t.border};
     padding: 6px;
 }}
+#pageCard {
+    background: ${t.surface};
+}
 #sidebar {{
     background: #0A1623;
     border: 1px solid {t.border};
