@@ -15,16 +15,17 @@ describe("approved dashboard composition", () => {
     expect(screen.getByTestId("category-donut")).toBeInTheDocument();
   });
 
-  it("uses exact unique crop coordinates for reference category and device artwork", () => {
+  it("renders approved category and device artwork as intrinsic images so nothing is clipped", () => {
     const view = render(<Dashboard />);
     const scoped = within(view.container);
-    const categoryCrops = scoped.getAllByTestId("category-image").map((node) => node.getAttribute("data-crop"));
-    const deviceCrops = scoped.getAllByTestId("device-image").map((node) => node.getAttribute("data-crop"));
-    expect(categoryCrops).toHaveLength(7);
-    expect(deviceCrops).toHaveLength(3);
-    expect(new Set(categoryCrops).size).toBe(7);
-    expect(new Set(deviceCrops).size).toBe(3);
-    expect(categoryCrops.every(Boolean)).toBe(true);
-    expect(deviceCrops.every(Boolean)).toBe(true);
+    const categoryImages = scoped.getAllByTestId("category-image");
+    const deviceImages = scoped.getAllByTestId("device-image");
+
+    expect(categoryImages).toHaveLength(7);
+    expect(deviceImages).toHaveLength(3);
+    expect(categoryImages.every((node) => node.tagName === "IMG")).toBe(true);
+    expect(deviceImages.every((node) => node.tagName === "IMG")).toBe(true);
+    expect(new Set(categoryImages.map((node) => node.getAttribute("src"))).size).toBe(7);
+    expect(new Set(deviceImages.map((node) => node.getAttribute("src"))).size).toBe(3);
   });
 });
