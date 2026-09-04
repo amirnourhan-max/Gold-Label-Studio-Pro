@@ -2,7 +2,7 @@ import {
   BarChart3, CirclePlus, Crown, FileText, Gift, LogOut, Package,
   Palette, Printer, ScanLine, Scale, Settings, UserPlus,
 } from "lucide-react";
-import type { ComponentType, CSSProperties } from "react";
+import type { ComponentType } from "react";
 import { referenceAssets } from "../../assets/reference";
 import { dashboardFixture } from "./dashboard.fixture";
 
