@@ -11,25 +11,28 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self.setObjectName("mainWindow")
         self.setWindowTitle("Gold Label Studio Pro")
-        self.setMinimumSize(1280, 760)
-        self.resize(1440, 900)
+        self.setMinimumSize(1360, 780)
+        self.resize(1600, 920)
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
 
         root = QWidget()
         root.setObjectName("appRoot")
         self.setCentralWidget(root)
+
         outer = QVBoxLayout(root)
-        outer.setContentsMargins(10, 10, 10, 10)
-        outer.setSpacing(10)
+        outer.setContentsMargins(16, 14, 16, 12)
+        outer.setSpacing(12)
 
         self.top_bar = TopBar()
         outer.addWidget(self.top_bar)
 
         body = QHBoxLayout()
-        body.setSpacing(10)
+        body.setSpacing(14)
+
         self.sidebar = Sidebar(default_navigation())
         self.page_host = QStackedWidget()
         self.page_host.setObjectName("pageHost")
+
         body.addWidget(self.page_host, stretch=1)
         body.addWidget(self.sidebar)
         outer.addLayout(body, stretch=1)
