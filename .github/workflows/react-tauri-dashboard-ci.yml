@@ -66,17 +66,20 @@ jobs:
             )
             foreach ($shot in $shots) {
               $output = Join-Path $pwd ("visual-checks\" + $shot.File)
-              $args = @(
+              $profile = Join-Path $pwd ("edge-profile-" + $shot.File.Replace(".png",""))
+              $edgeArgs = @(
                 "--headless",
                 "--disable-gpu",
                 "--hide-scrollbars",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--user-data-dir=" + $profile,
                 "--window-size=" + $shot.Size,
                 "--screenshot=" + $output,
                 "http://127.0.0.1:4173"
               )
-              $edgeProcess = Start-Process -FilePath $edge -ArgumentList $args -PassThru
-              $edgeProcess.WaitForExit(20000) | Out-Null
-              for ($wait = 0; $wait -lt 20 -and !(Test-Path $output); $wait++) {
+              & $edge @edgeArgs | Out-Null
+              for ($wait = 0; $wait -lt 30 -and !(Test-Path $output); $wait++) {
                 Start-Sleep -Milliseconds 500
               }
               if (!(Test-Path $output)) { throw ("Screenshot was not created: " + $shot.File) }
