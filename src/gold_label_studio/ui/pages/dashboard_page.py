@@ -184,24 +184,18 @@ class DashboardPage(BasePage):
         queue.layout_root.addStretch(1)
         panels.addWidget(queue, 1, 1)
 
-        system = _DashboardPanel("وضعیت تجهیزات", "آمادگی اجزای اصلی سیستم")
-        for label, value in (
-            ("ترازو", "در انتظار تنظیم"),
-            ("چاپگر", "در انتظار تنظیم"),
-            ("دیتابیس", "آماده"),
-        ):
-            row = QFrame()
-            row.setObjectName("systemStatusRow")
-            row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(10, 6, 10, 6)
-            row_layout.addWidget(QLabel(label))
-            row_layout.addStretch(1)
-            value_label = QLabel(value)
-            value_label.setObjectName("systemStatusValue")
-            row_layout.addWidget(value_label)
-            system.layout_root.addWidget(row)
-        system.layout_root.addStretch(1)
-        panels.addWidget(system, 1, 2)
+        operations = QFrame()
+        operations.setObjectName("operationsSummary")
+        operations_layout = QVBoxLayout(operations)
+        operations_layout.setContentsMargins(14, 10, 14, 10)
+        operations_layout.setSpacing(5)
+        operations_title = QLabel("وضعیت عملیات")
+        operations_title.setObjectName("operationsTitle")
+        operations_layout.addWidget(operations_title)
+        operations_meta = QLabel("ترازو و چاپگر از نوار وضعیت کنترل می‌شوند")
+        operations_meta.setObjectName("operationsMeta")
+        operations_layout.addWidget(operations_meta)
+        quick.layout_root.addWidget(operations)
 
         panels.setColumnStretch(0, 1)
         panels.setColumnStretch(1, 1)
