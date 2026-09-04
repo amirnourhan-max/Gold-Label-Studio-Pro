@@ -1,10 +1,9 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Bell, ChevronDown, Maximize2, Minus, Search, Settings, UserRound, X } from "lucide-react";
 
 async function runWindowAction(action: "minimize" | "maximize" | "close") {
-  const { getCurrentWindow } = await import("@tauri-apps/api/window");
-  const appWindow = getCurrentWindow();
-
   try {
+    const appWindow = getCurrentWindow();
     if (action === "minimize") await appWindow.minimize();
     if (action === "maximize") await appWindow.toggleMaximize();
     if (action === "close") await appWindow.close();
