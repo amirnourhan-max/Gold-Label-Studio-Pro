@@ -59,14 +59,28 @@ jobs:
             }
             if (!(Test-Path $edge)) { throw "Microsoft Edge executable not found" }
 
-            & $edge --headless --disable-gpu --hide-scrollbars --window-size=1600,900 --screenshot="$pwd\visual-checks\dashboard-1600x900.png" http://127.0.0.1:4173
-            if ($LASTEXITCODE -ne 0) { throw "1600x900 screenshot failed" }
-
-            & $edge --headless --disable-gpu --hide-scrollbars --window-size=1366,768 --screenshot="$pwd\visual-checks\dashboard-1366x768.png" http://127.0.0.1:4173
-            if ($LASTEXITCODE -ne 0) { throw "1366x768 screenshot failed" }
-
-            & $edge --headless --disable-gpu --hide-scrollbars --window-size=1920,1080 --screenshot="$pwd\visual-checks\dashboard-1920x1080.png" http://127.0.0.1:4173
-            if ($LASTEXITCODE -ne 0) { throw "1920x1080 screenshot failed" }
+            $shots = @(
+              @{ Size = "1600,900"; File = "dashboard-1600x900.png" },
+              @{ Size = "1366,768"; File = "dashboard-1366x768.png" },
+              @{ Size = "1920,1080"; File = "dashboard-1920x1080.png" }
+            )
+            foreach ($shot in $shots) {
+              $output = Join-Path $pwd ("visual-checks\" + $shot.File)
+              $args = @(
+                "--headless",
+                "--disable-gpu",
+                "--hide-scrollbars",
+                "--window-size=" + $shot.Size,
+                "--screenshot=" + $output,
+                "http://127.0.0.1:4173"
+              )
+              $edgeProcess = Start-Process -FilePath $edge -ArgumentList $args -PassThru
+              $edgeProcess.WaitForExit(20000) | Out-Null
+              for ($wait = 0; $wait -lt 20 -and !(Test-Path $output); $wait++) {
+                Start-Sleep -Milliseconds 500
+              }
+              if (!(Test-Path $output)) { throw ("Screenshot was not created: " + $shot.File) }
+            }
           } finally {
             if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
           }
