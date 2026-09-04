@@ -1,0 +1,2 @@
+import { Headphones } from "lucide-react";
+export function Footer(){return <footer className="footer"><span dir="ltr">© 2026 Gold Label Studio Pro</span><span>نسخه: 1.0.0</span><span>ساخته شده با ♥ برای صنعت طلا و جواهر</span><button><Headphones size={18}/> پشتیبانی</button></footer>}

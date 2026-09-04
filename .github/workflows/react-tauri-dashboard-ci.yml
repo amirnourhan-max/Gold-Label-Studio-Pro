@@ -1,18 +1,30 @@
 name: React Tauri Dashboard CI
-
 on:
   push:
     branches: [react-tauri-dashboard]
-
 jobs:
-  frontend-red-gate:
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm install
+      - run: npm run test:run
+      - run: npm run build
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - run: npm run tauri build -- --no-bundle
+      - name: Smoke packaged executable
+        shell: powershell
+        run: |
+          $exe = "src-tauri\target\release\gold-label-studio-pro.exe"
+          if (!(Test-Path $exe)) { throw "Executable not found: $exe" }
+          $p = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 5
+          if ($p.HasExited) { throw "Gold Label Studio Pro exited during smoke launch" }
+          Stop-Process -Id $p.Id -Force
+      - uses: actions/upload-artifact@v4
         with:
-          node-version: '22'
-      - name: Install frontend dependencies
-        run: npm install
-      - name: Test
-        run: npm run test:run
+          name: Gold-Label-Studio-Pro-React-Tauri-Preview
+          path: src-tauri/target/release/gold-label-studio-pro.exe

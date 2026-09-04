@@ -1,0 +1,1 @@
+fn main() { gold_label_studio_pro_lib::run(); }
