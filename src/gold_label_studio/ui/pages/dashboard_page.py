@@ -14,7 +14,7 @@ class _MetricCard(QFrame):
         title = QLabel(label)
         title.setObjectName("muted")
         value_label = QLabel(f"{value} {suffix}".strip())
-        value_label.setStyleSheet("font-size: 24px; font-weight: 800;")
+        value_label.setObjectName("metricValue")
         layout.addWidget(title)
         layout.addWidget(value_label)
 
@@ -23,7 +23,7 @@ class DashboardPage(BasePage):
     def __init__(self, parent=None) -> None:
         super().__init__(PageId.DASHBOARD, "داشبورد", parent)
         header = QLabel("داشبورد")
-        header.setStyleSheet("font-size: 28px; font-weight: 800;")
+        header.setObjectName("pageTitle")
         self.body.addWidget(header)
 
         sub = QLabel("نمای کلی فعالیت‌های برچسب‌گذاری و ردیابی")
@@ -58,7 +58,7 @@ class DashboardPage(BasePage):
             p_layout = QVBoxLayout(panel)
             p_layout.setContentsMargins(16, 14, 16, 14)
             label = QLabel(title)
-            label.setStyleSheet("font-size: 15px; font-weight: 700;")
+            label.setObjectName("panelTitle")
             p_layout.addWidget(label, alignment=Qt.AlignmentFlag.AlignTop)
             p_layout.addStretch(1)
             grid.addWidget(panel, row, col)
