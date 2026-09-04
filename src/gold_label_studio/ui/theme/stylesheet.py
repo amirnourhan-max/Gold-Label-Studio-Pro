@@ -41,6 +41,9 @@ QPushButton#navButton:checked:hover, QPushButton#primaryButton:hover {{
 }}
 QLabel#muted {{ color: {t.text_muted}; }}
 QLabel#accent {{ color: {t.accent}; font-weight: 700; }}
+QLabel#pageTitle {{ font-size: 28px; font-weight: 800; }}
+QLabel#metricValue {{ font-size: 24px; font-weight: 800; }}
+QLabel#panelTitle {{ font-size: 15px; font-weight: 700; }}
 QFrame[status="success"] {{ border-color: {t.success}; }}
 QFrame[status="danger"] {{ border-color: {t.danger}; }}
 """.strip()
