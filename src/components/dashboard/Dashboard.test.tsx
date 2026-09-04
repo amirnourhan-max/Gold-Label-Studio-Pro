@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Dashboard } from "./Dashboard";
 
@@ -15,11 +15,13 @@ describe("approved dashboard composition", () => {
     expect(screen.getByTestId("category-donut")).toBeInTheDocument();
   });
 
-  it("uses seven independent local category images", () => {
-    render(<Dashboard />);
-    const categoryImages = screen.getAllByTestId("category-image");
+  it("uses seven independent local SVG category artworks", () => {
+    const view = render(<Dashboard />);
+    const categoryImages = within(view.container).getAllByTestId("category-image");
+    const sources = categoryImages.map((node) => node.getAttribute("src") ?? "");
     expect(categoryImages).toHaveLength(7);
     expect(categoryImages.every((node) => node.tagName === "IMG")).toBe(true);
-    expect(new Set(categoryImages.map((node) => node.getAttribute("src"))).size).toBe(7);
+    expect(new Set(sources).size).toBe(7);
+    expect(sources.every((src) => /category-[a-z-]+\.svg(?:$|\?)/.test(src))).toBe(true);
   });
 });
