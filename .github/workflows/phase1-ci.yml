@@ -21,10 +21,10 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -v
       - name: Ruff
-        run: python -m ruff check src tests tools
+        run: python -m ruff check src tests tools launcher.py
       - name: Compile
-        run: python -m compileall -q src tools
-      - name: Smoke
+        run: python -m compileall -q src tools launcher.py
+      - name: Source smoke
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m gold_label_studio --smoke-test
@@ -38,9 +38,11 @@ jobs:
           name: phase1-dashboard
           path: artifacts/phase1-dashboard.png
       - name: Build Windows application
-        run: python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --assume-yes-for-downloads --output-dir=dist src/gold_label_studio/__main__.py
+        run: python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --assume-yes-for-downloads --output-filename=GoldLabelStudioPro.exe --output-dir=dist launcher.py
+      - name: Verify built executable
+        run: .\dist\launcher.dist\GoldLabelStudioPro.exe --smoke-test
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
         with:
           name: Gold-Label-Studio-Pro-Phase1-Windows
-          path: dist/__main__.dist/
+          path: dist/launcher.dist/
