@@ -1,4 +1,4 @@
-from gold_label_studio.app.bootstrap import run
+from .app.bootstrap import run
 
 
 if __name__ == "__main__":
