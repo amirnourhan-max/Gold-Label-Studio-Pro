@@ -12,26 +12,45 @@ class Sidebar(QFrame):
         super().__init__(parent)
         self.setObjectName("sidebar")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.setFixedWidth(210)
+        self.setFixedWidth(236)
+
         self._buttons: dict[PageId, NavButton] = {}
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 18, 14, 18)
-        layout.setSpacing(8)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(7)
 
-        brand = QLabel("◆  Gold Label Studio Pro")
-        brand.setObjectName("accent")
+        brand_block = QFrame()
+        brand_block.setObjectName("brandBlock")
+        brand_layout = QVBoxLayout(brand_block)
+        brand_layout.setContentsMargins(14, 14, 14, 14)
+        brand_layout.setSpacing(5)
+
+        brand = QLabel("◆  GOLD LABEL")
+        brand.setObjectName("brandTitle")
         brand.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(brand)
+        brand_layout.addWidget(brand)
 
-        subtitle = QLabel("سیستم جامع برچسب‌گذاری و ردیابی طلا")
-        subtitle.setObjectName("muted")
+        pro = QLabel("STUDIO PRO")
+        pro.setObjectName("brandPro")
+        pro.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        brand_layout.addWidget(pro)
+
+        subtitle = QLabel("مدیریت حرفه‌ای لیبل و ردیابی طلا")
+        subtitle.setObjectName("brandSubtitle")
         subtitle.setWordWrap(True)
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(subtitle)
-        layout.addSpacing(12)
+        brand_layout.addWidget(subtitle)
+
+        layout.addWidget(brand_block)
+        layout.addSpacing(5)
+
+        section = QLabel("منوی اصلی")
+        section.setObjectName("sidebarSectionLabel")
+        section.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(section)
 
         for item in items:
             button = NavButton(item)
@@ -43,10 +62,24 @@ class Sidebar(QFrame):
             layout.addWidget(button)
 
         layout.addStretch(1)
-        version = QLabel("v0.1.0")
-        version.setObjectName("muted")
+
+        footer = QFrame()
+        footer.setObjectName("sidebarFooter")
+        footer_layout = QVBoxLayout(footer)
+        footer_layout.setContentsMargins(10, 10, 10, 10)
+        footer_layout.setSpacing(2)
+
+        footer_title = QLabel("Gold Label Studio Pro")
+        footer_title.setObjectName("sidebarFooterTitle")
+        footer_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        footer_layout.addWidget(footer_title)
+
+        version = QLabel("Version 0.1.0 • Phase 1")
+        version.setObjectName("sidebarFooterMeta")
         version.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(version)
+        footer_layout.addWidget(version)
+
+        layout.addWidget(footer)
 
     @property
     def buttons(self) -> dict[PageId, NavButton]:
