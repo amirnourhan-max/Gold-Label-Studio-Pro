@@ -13,11 +13,7 @@ from gold_label_studio.ui.theme import DARK_GOLD_TOKENS, build_stylesheet
 LOGGER = logging.getLogger(__name__)
 
 
-def create_application(argv: Sequence[str] | None = None) -> QApplication:
-    existing = QApplication.instance()
-    if existing is not None:
-        return existing
-    app = QApplication(list(argv) if argv is not None else sys.argv)
+def _configure_application(app: QApplication) -> QApplication:
     settings = default_settings()
     app.setApplicationName(settings.app_name)
     app.setApplicationVersion(settings.version)
@@ -25,6 +21,14 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
     app.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
     app.setStyleSheet(build_stylesheet(DARK_GOLD_TOKENS))
     return app
+
+
+def create_application(argv: Sequence[str] | None = None) -> QApplication:
+    existing = QApplication.instance()
+    if existing is not None:
+        return _configure_application(existing)
+    app = QApplication(list(argv) if argv is not None else sys.argv)
+    return _configure_application(app)
 
 
 def create_main_window() -> MainWindow:
