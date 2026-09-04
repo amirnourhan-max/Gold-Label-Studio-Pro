@@ -15,16 +15,14 @@ describe("approved dashboard composition", () => {
     expect(screen.getByTestId("category-donut")).toBeInTheDocument();
   });
 
-  it("renders seven clean category atlas cells with unique positions and no embedded card text", () => {
+  it("renders seven independent clean category images", () => {
     const view = render(<Dashboard />);
-    const categoryArt = within(view.container).getAllByTestId("category-image");
-    expect(categoryArt).toHaveLength(7);
-    expect(categoryArt.every((node) => node.tagName === "DIV")).toBe(true);
+    const images = within(view.container).getAllByTestId("category-image");
+    const sources = images.map((node) => node.getAttribute("src") ?? "");
 
-    const images = categoryArt.map((node) => node.style.backgroundImage);
-    const positions = categoryArt.map((node) => node.style.backgroundPosition);
-    expect(new Set(images).size).toBe(1);
-    expect(images[0]).toContain("category-clean-atlas");
-    expect(new Set(positions).size).toBe(7);
+    expect(images).toHaveLength(7);
+    expect(images.every((node) => node.tagName === "IMG")).toBe(true);
+    expect(new Set(sources).size).toBe(7);
+    expect(sources.every((src) => src.includes("category-") && src.includes(".webp"))).toBe(true);
   });
 });

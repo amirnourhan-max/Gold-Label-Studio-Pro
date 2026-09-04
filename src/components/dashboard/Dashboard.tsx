@@ -3,7 +3,7 @@ import {
   Palette, Printer, ScanLine, Scale, Settings, UserPlus,
 } from "lucide-react";
 import type { ComponentType } from "react";
-import { referenceAssets } from "../../assets/reference";
+import { categoryAssets, referenceAssets } from "../../assets/reference";
 import { dashboardFixture } from "./dashboard.fixture";
 
 const metricIcons: Record<string, ComponentType<{ size?: number }>> = {
@@ -13,8 +13,6 @@ const metricIcons: Record<string, ComponentType<{ size?: number }>> = {
   printed: Printer,
   products: Package,
 };
-
-const categoryPositions = ["0%", "16.6667%", "33.3333%", "50%", "66.6667%", "83.3333%", "100%"] as const;
 
 function Sparkline({ tone }: { tone: string }) {
   return <span className={"sparkline " + tone}><i/><i/><i/><i/><i/><i/></span>;
@@ -119,15 +117,12 @@ function CategoryGallery() {
         {dashboardFixture.categories.map(([name, count], i) => (
           <article className="category-card" data-testid="category-card" key={name}>
             <div className="category-art-frame">
-              <div
+              <img
                 className="category-art"
                 data-testid="category-image"
-                role="img"
-                aria-label={name}
-                style={{
-                  backgroundImage: `url("${referenceAssets.categoryCleanAtlas}")`,
-                  backgroundPosition: `${categoryPositions[i]} 50%`,
-                }}
+                src={categoryAssets[i]}
+                alt={name}
+                draggable={false}
               />
             </div>
             <b>{name}</b><small>{count}</small>

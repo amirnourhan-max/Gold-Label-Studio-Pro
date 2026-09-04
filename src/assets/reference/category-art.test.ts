@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import categoryAtlas from "./category-clean-atlas.webp";
+import { categoryAssets } from "./index";
 
 describe("category artwork source", () => {
-  it("uses one clean local jewelry-only atlas", () => {
-    expect(categoryAtlas).toContain("category-clean-atlas");
-    expect(categoryAtlas).not.toMatch(/^https?:/);
+  it("uses seven clean independent local WebP assets", () => {
+    expect(categoryAssets).toHaveLength(7);
+    expect(new Set(categoryAssets).size).toBe(7);
+    for (const asset of categoryAssets) {
+      expect(asset).toContain("category-");
+      expect(asset).toContain(".webp");
+      expect(asset).not.toMatch(/^https?:/);
+    }
   });
 });
