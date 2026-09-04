@@ -16,9 +16,10 @@ describe("approved dashboard composition", () => {
   });
 
   it("uses exact unique crop coordinates for reference category and device artwork", () => {
-    render(<Dashboard />);
-    const categoryCrops = screen.getAllByTestId("category-image").map((node) => node.getAttribute("data-crop"));
-    const deviceCrops = screen.getAllByTestId("device-image").map((node) => node.getAttribute("data-crop"));
+    const view = render(<Dashboard />);
+    const scoped = within(view.container);
+    const categoryCrops = scoped.getAllByTestId("category-image").map((node) => node.getAttribute("data-crop"));
+    const deviceCrops = scoped.getAllByTestId("device-image").map((node) => node.getAttribute("data-crop"));
     expect(categoryCrops).toHaveLength(7);
     expect(deviceCrops).toHaveLength(3);
     expect(new Set(categoryCrops).size).toBe(7);
