@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gold-label-studio-pro"
+version = "0.1.0"
+description = "Professional jewelry labeling, tracking and packaging desktop application"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+authors = [{name = "AmirNourhan"}]
+dependencies = [
+  "PySide6>=6.9,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4,<9",
+  "pytest-qt>=4.5,<5",
+  "ruff>=0.12,<1",
+  "nuitka>=2.7,<3",
+]
+
+[project.scripts]
+gold-label-studio = "gold_label_studio.app.bootstrap:run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gold_label_studio"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
