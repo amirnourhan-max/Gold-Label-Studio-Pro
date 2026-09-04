@@ -9,13 +9,13 @@ import { dashboardFixture } from "./dashboard.fixture";
 type Crop = { x: number; y: number; width: number; height: number };
 
 const categoryCrops: Crop[] = [
-  { x: 12, y: 7, width: 95, height: 65 },
-  { x: 133, y: 7, width: 94, height: 65 },
-  { x: 248, y: 7, width: 104, height: 65 },
-  { x: 367, y: 6, width: 105, height: 67 },
-  { x: 493, y: 7, width: 93, height: 65 },
-  { x: 609, y: 7, width: 101, height: 65 },
-  { x: 725, y: 9, width: 110, height: 62 },
+  { x: 20, y: 20, width: 90, height: 55 },
+  { x: 150, y: 20, width: 90, height: 55 },
+  { x: 260, y: 20, width: 100, height: 55 },
+  { x: 390, y: 20, width: 100, height: 55 },
+  { x: 515, y: 20, width: 95, height: 55 },
+  { x: 645, y: 20, width: 95, height: 55 },
+  { x: 735, y: 20, width: 105, height: 55 },
 ];
 
 const deviceCrops: Crop[] = [
@@ -24,15 +24,39 @@ const deviceCrops: Crop[] = [
   { x: 286, y: 8, width: 78, height: 74 },
 ];
 
-function cropStyle(asset: string, crop: Crop, atlasWidth: number, atlasHeight: number): CSSProperties {
-  return {
-    width: crop.width,
-    height: crop.height,
-    backgroundImage: `url("${asset}")`,
-    backgroundRepeat: "no-repeat",
-    backgroundSize: `${atlasWidth}px ${atlasHeight}px`,
-    backgroundPosition: `-${crop.x}px -${crop.y}px`,
-  };
+function AtlasSlice({
+  asset,
+  crop,
+  atlasWidth,
+  atlasHeight,
+  testId,
+  fragment,
+  className,
+}: {
+  asset: string;
+  crop: Crop;
+  atlasWidth: number;
+  atlasHeight: number;
+  testId: string;
+  fragment: string;
+  className: string;
+}) {
+  return (
+    <span className={className} style={{ width: crop.width, height: crop.height }}>
+      <img
+        data-testid={testId}
+        src={asset + "#" + fragment}
+        alt=""
+        draggable={false}
+        style={{
+          width: atlasWidth,
+          height: atlasHeight,
+          left: -crop.x,
+          top: -crop.y,
+        }}
+      />
+    </span>
+  );
 }
 
 const metricIcons: Record<string, ComponentType<{ size?: number }>> = {
@@ -145,15 +169,17 @@ function CategoryGallery() {
       <div className="category-grid">
         {dashboardFixture.categories.map(([name, count], i) => {
           const crop = categoryCrops[i];
-          const cropId = `${crop.x},${crop.y},${crop.width},${crop.height}`;
           return (
             <article className="category-card" data-testid="category-card" key={name}>
               <div className="category-art-frame">
-                <div
-                  className="category-art"
-                  data-testid="category-image"
-                  data-crop={cropId}
-                  style={cropStyle(referenceAssets.categories, crop, 840, 80)}
+                <AtlasSlice
+                  asset={referenceAssets.categories}
+                  crop={crop}
+                  atlasWidth={840}
+                  atlasHeight={80}
+                  testId="category-image"
+                  fragment={"category-" + i}
+                  className="category-art-slice"
                 />
               </div>
               <b>{name}</b><small>{count}</small>
@@ -192,15 +218,17 @@ function DeviceStrip() {
     <section className="device-strip">
       {devices.map(([name, model, value, status], i) => {
         const crop = deviceCrops[i];
-        const cropId = `${crop.x},${crop.y},${crop.width},${crop.height}`;
         return (
           <article className="device-card" data-testid="device-card" key={name}>
             <div className="device-art-frame">
-              <div
-                className="device-art"
-                data-testid="device-image"
-                data-crop={cropId}
-                style={cropStyle(referenceAssets.devices, crop, 390, 90)}
+              <AtlasSlice
+                asset={referenceAssets.devices}
+                crop={crop}
+                atlasWidth={390}
+                atlasHeight={90}
+                testId="device-image"
+                fragment={"device-" + i}
+                className="device-art-slice"
               />
             </div>
             <div className="device-copy"><b>{name}<i/></b><span>{model}</span></div>
