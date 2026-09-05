@@ -36,7 +36,7 @@ export function LabelDesignerPage() {
             <header><b>ابزارها</b><span>⌁</span></header>
             {tools.map(([label, Icon], index) => <button type="button" key={label} className={index === 0 ? "active" : ""}><Icon size={20} /><span>{label}</span></button>)}
           </section>
-          <section className="label-view-settings">
+          <section className="label-view-settings" role="region" aria-label="تنظیمات نمایش">
             <div className="label-zoom"><button type="button" aria-label="کوچک‌نمایی">−</button><output>219%</output><button type="button" aria-label="بزرگ‌نمایی">+</button></div>
             <p><Grid3X3 size={16} /><span>نمایش شبکه</span><b>⌗</b></p>
             <p><Eye size={16} /><span>چسبیدن به شبکه</span><Switch /></p>
@@ -82,7 +82,7 @@ export function LabelDesignerPage() {
 
         <section className="label-templates" aria-label="قالب‌های ذخیره‌شده">
           <header><h2>قالب‌های ذخیره‌شده</h2><span><button>مدیریت قالب‌ها</button><button aria-label="نمایش شبکه‌ای"><Grid3X3 size={17} /></button><button aria-label="نمایش فهرستی"><List size={17} /></button><ChevronLeft size={20} /></span></header>
-          <div>{templates.map((name, index) => <article key={name} className={index === 0 ? "active" : ""}><img src={designerTemplates[index]} alt={`قالب ${name}`} /><span>{name}</span></article>)}</div>
+          <div role="list" aria-label="قالب‌های ذخیره‌شده">{templates.map((name, index) => <article role="listitem" key={name} className={index === 0 ? "active" : ""}><span className="label-template-image"><img src={designerTemplates[index]} alt={`قالب ${name}`} /></span><span>{name}</span></article>)}</div>
         </section>
       </div>
     </main>

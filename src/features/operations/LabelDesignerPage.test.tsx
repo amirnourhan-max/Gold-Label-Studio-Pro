@@ -25,4 +25,23 @@ describe("approved label designer", () => {
     ]);
     expect(screen.getAllByRole("img", { name: /قالب/ })).toHaveLength(6);
   });
+
+  it("keeps view controls separate from the complete left-side tool list", () => {
+    render(<LabelDesignerPage />);
+
+    const viewSettings = screen.getByRole("region", { name: "تنظیمات نمایش" });
+    expect(within(viewSettings).getByRole("button", { name: "کوچک‌نمایی" })).toBeInTheDocument();
+    expect(within(viewSettings).getByRole("button", { name: "بزرگ‌نمایی" })).toBeInTheDocument();
+    expect(within(viewSettings).getByText("قفل راهنماها")).toBeInTheDocument();
+  });
+
+  it("shows all six saved templates as complete selectable cards", () => {
+    render(<LabelDesignerPage />);
+
+    const templates = screen.getByRole("list", { name: "قالب‌های ذخیره‌شده" });
+    expect(within(templates).getAllByRole("listitem")).toHaveLength(6);
+    expect(within(templates).getAllByRole("img").map(image => image.getAttribute("alt"))).toEqual([
+      "قالب انگشتر", "قالب دستبند", "قالب گردنبند", "قالب سرویس", "قالب پلاک", "قالب گوشواره",
+    ]);
+  });
 });
