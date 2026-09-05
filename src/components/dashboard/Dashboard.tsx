@@ -98,12 +98,12 @@ const quick = [
   ["مشتری جدید", UserPlus], ["سفارش جدید", FileText], ["گزارش‌گیری", BarChart3], ["تنظیمات", Settings],
 ] as const;
 
-function QuickActions() {
+function QuickActions({ onNewProduct }: { onNewProduct?: () => void }) {
   return (
     <section className="panel quick-panel">
       <div className="panel-title"><h3>دسترسی سریع</h3></div>
       <div className="quick-grid">
-        {quick.map(([label, Icon]) => <button key={label}><span><Icon size={22}/></span><small>{label}</small></button>)}
+        {quick.map(([label, Icon]) => <button key={label} onClick={label === "محصول جدید" ? onNewProduct : undefined}><span><Icon size={22}/></span><small>{label}</small></button>)}
       </div>
     </section>
   );
@@ -150,12 +150,12 @@ function PrintQueue() {
   );
 }
 
-export function Dashboard() {
+export function Dashboard({ onNewProduct }: { onNewProduct?: () => void }) {
   return (
     <main className="dashboard" data-testid="dashboard">
       <section className="dashboard-top">{dashboardFixture.metrics.map((item) => <MetricCard key={item.id} item={item}/>)}<HeroCard/></section>
       <section className="analytics-grid"><DailyActivityChart/><CategoryDonut/><RecentActivity/></section>
-      <section className="operations-grid"><QuickActions/><CategoryGallery/><PrintQueue/></section>
+      <section className="operations-grid"><QuickActions onNewProduct={onNewProduct}/><CategoryGallery/><PrintQueue/></section>
     </main>
   );
 }

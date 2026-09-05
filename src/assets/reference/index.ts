@@ -3,6 +3,8 @@ import heroJewelry from "./hero-jewelry.webp";
 import categories from "./categories.webp";
 import devices from "./devices.webp";
 import trustArtwork from "./trust-artwork.webp";
+import productRegistrationRing from "./product-registration-ring.webp";
+import productRegistrationLabel from "./product-registration-label.webp";
 
 import categoryRing from "./category-ring.webp";
 import categoryBracelet from "./category-bracelet.webp";
@@ -18,6 +20,8 @@ export const referenceAssets = {
   categories,
   devices,
   trustArtwork,
+  productRegistrationRing,
+  productRegistrationLabel,
 } as const;
 
 export const categoryAssets = [

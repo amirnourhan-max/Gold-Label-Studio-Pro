@@ -1,14 +1,35 @@
-import { BarChart3, Boxes, ClipboardList, Database, Home, LogOut, Palette, Printer, Settings, ShoppingBag, Users, Scale } from "lucide-react";
+import { BarChart3, Boxes, CirclePlus, ClipboardList, Database, Home, LogOut, Palette, Printer, Settings, ShoppingBag, Users, Scale } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
 
-const nav = [
-  ["داشبورد", Home], ["محصولات", ShoppingBag], ["چاپ لیبل", Printer],
-  ["طراحی لیبل", Palette], ["بسته‌بندی", Boxes], ["مشتریان", Users],
-  ["سفارش‌ها", ClipboardList], ["خروج کالا", LogOut], ["گزارش‌ها", BarChart3],
-  ["تنظیمات", Settings],
+export type ShellRoute = "dashboard" | "product-registration" | "label-print" | "label-designer" | "packaging" | "outbound" | "products" | "customers" | "orders" | "reports" | "settings";
+
+type NavigationItem = {
+  label: string;
+  Icon: typeof Home;
+  route?: ShellRoute;
+  chevron?: boolean;
+};
+
+const nav: readonly NavigationItem[] = [
+  { label: "داشبورد", Icon: Home, route: "dashboard" },
+  { label: "محصولات", Icon: ShoppingBag, route: "products", chevron: true },
+  { label: "ثبت محصول", Icon: CirclePlus, route: "product-registration" },
+  { label: "چاپ لیبل", Icon: Printer, route: "label-print", chevron: true },
+  { label: "طراحی لیبل", Icon: Palette, route: "label-designer", chevron: true },
+  { label: "بسته‌بندی", Icon: Boxes, route: "packaging", chevron: true },
+  { label: "مشتریان", Icon: Users, route: "customers", chevron: true },
+  { label: "سفارش‌ها", Icon: ClipboardList, route: "orders", chevron: true },
+  { label: "خروج کالا", Icon: LogOut, route: "outbound", chevron: true },
+  { label: "گزارش‌ها", Icon: BarChart3, route: "reports" },
+  { label: "تنظیمات", Icon: Settings, route: "settings" },
 ] as const;
 
-export function Sidebar() {
+type SidebarProps = {
+  activePage?: ShellRoute;
+  onNavigate?: (page: ShellRoute) => void;
+};
+
+export function Sidebar({ activePage = "dashboard", onNavigate = () => {} }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand" dir="ltr">
@@ -18,9 +39,14 @@ export function Sidebar() {
       </div>
 
       <nav aria-label="منوی اصلی" className="nav-list">
-        {nav.map(([label, Icon], i) => (
-          <button key={label} className={i === 0 ? "nav-item active" : "nav-item"} aria-current={i === 0 ? "page" : undefined}>
-            <Icon size={18}/><span>{label}</span>{i > 0 && i < 8 ? <span className="nav-chevron">‹</span> : null}
+        {nav.map(({ label, Icon, route, chevron }) => (
+          <button
+            key={label}
+            className={route === activePage ? "nav-item active" : "nav-item"}
+            aria-current={route === activePage ? "page" : undefined}
+            onClick={route ? () => onNavigate(route) : undefined}
+          >
+            <Icon size={18}/><span>{label}</span>{chevron ? <span className="nav-chevron">‹</span> : null}
           </button>
         ))}
       </nav>

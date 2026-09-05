@@ -3,7 +3,8 @@ import { referenceAssets } from "./index";
 
 describe("approved reference assets", () => {
   it("keeps all runtime artwork local", () => {
-    expect(Object.keys(referenceAssets)).toHaveLength(5);
+    expect(referenceAssets).toHaveProperty("productRegistrationRing", expect.stringContaining("product-registration-ring.webp"));
+    expect(referenceAssets).toHaveProperty("productRegistrationLabel", expect.stringContaining("product-registration-label.webp"));
     for (const url of Object.values(referenceAssets)) {
       expect(url).not.toMatch(/^https?:/);
       expect(url).toBeTruthy();
