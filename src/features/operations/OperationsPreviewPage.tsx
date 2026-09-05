@@ -1,14 +1,14 @@
-import { Boxes, Check, Grid3X3, Image as ImageIcon, Plus, QrCode, ScanBarcode, Trash2, X } from "lucide-react";
-import { referenceAssets } from "../../assets/reference";
+import { Check, Plus, QrCode, ScanBarcode, X } from "lucide-react";
 import "./operations-preview.css";
 import "./reference-layout.css";
 import { PackageLabelPreview, OutboundSummary, OutboundActions } from "./PreviewPanels";
+import { LabelDesignerPage } from "./LabelDesignerPage";
 
 type Mode = "label-print" | "label-designer" | "packaging" | "outbound" | "products" | "reports" | "settings";
 const products = ["انگشتر طرح گل", "دستبند طرح قلب", "گردنبند طرح پروانه", "سرویس طرح نگین", "پلاک طرح اسم", "گوشواره طرح حلقه"];
 
 export function OperationsPreviewPage({ mode }: { mode: Mode }) {
-  if (mode === "label-designer") return <main className="ops-page"><header className="ops-title"><div><small>محصولات</small><h1>طراح لیبل　⌄</h1></div><b>پیش‌نمایش رابط کاربری</b></header><div className="ops-toolbar">{["جدید","باز کردن","ذخیره","ذخیره نسخه","Undo","Redo","تراز کردن","قفل","گروه","پیش‌نمایش","چاپ تست"].map(x=><button key={x}>{x}</button>)}</div><div className="designer-layout"><aside className="designer-tools"><h3>ابزارها</h3>{[["انتخاب",Grid3X3],["متن",ImageIcon],["QR",QrCode],["تصویر",ImageIcon],["لوگو",Boxes],["خط",X]].map(([name,Icon])=><button key={name as string}><Icon size={19}/>{name as string}</button>)}</aside><section className="designer-canvas"><div className="canvas-ruler">0　 10　 20　 30　 40　 50　 60　 70　 80　 90 mm</div><div className="label-art"><img src={referenceAssets.productRegistrationLabel} alt="پیش‌نمایش لیبل"/><i/></div><div className="zoom-bar">⌕　 219%　 ⊞　 ▦</div></section><aside className="designer-properties"><h3>ویژگی‌های شیء</h3><select><option>QR Code 1</option></select>{["موقعیت و اندازه","ظاهر","داده (QR Code)","سایر"].map(x=><section key={x}><strong>{x}</strong><p>X　54.10 mm　　Y　12.30 mm</p><p>W　22.00 mm　　H　22.00 mm</p></section>)}</aside></div><div className="template-strip"><h3>قالب‌های آماده</h3>{products.map(x=><div className="template-card" key={x}><img src={referenceAssets.productRegistrationLabel} alt=""/><span>{x}</span></div>)}</div></main>;
+  if (mode === "label-designer") return <LabelDesignerPage />;
   if (mode === "packaging") return <Packaging />;
   if (mode !== "outbound") return <UtilityPage mode={mode} />;
   return <Outbound />;

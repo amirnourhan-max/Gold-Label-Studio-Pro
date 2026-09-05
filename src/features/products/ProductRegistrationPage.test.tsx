@@ -13,7 +13,7 @@ describe("approved product registration screen", () => {
     expect(screen.getByRole("combobox", { name: "زیرمجموعه" })).toHaveValue("انگشتر زنانه");
     expect(screen.getByRole("textbox", { name: "کد داخلی" })).toHaveValue("R-250904-00125");
     expect(screen.getByRole("textbox", { name: "وزن (گرم)" })).toHaveValue("4.385");
-    expect(screen.getByRole("textbox", { name: "وزن دستی (گرم)" })).toHaveValue("4.385");
+    expect(screen.getByRole("textbox", { name: "وزن نگین (گرم)" })).toHaveValue("4.385");
     expect(screen.getByRole("combobox", { name: "عیار" })).toHaveValue("750");
     expect(screen.getByRole("textbox", { name: "سایز" })).toHaveValue("54");
     expect(screen.getByRole("spinbutton", { name: "تعداد" })).toHaveValue(1);
@@ -35,6 +35,28 @@ describe("approved product registration screen", () => {
     fireEvent.click(within(groups).getByRole("button", { name: "دستبند" }));
     expect(within(groups).getByRole("button", { name: "دستبند" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("combobox", { name: "زیرمجموعه" })).toHaveValue("دستبند زنانه");
+  });
+
+  it("adds and removes a main product group locally", () => {
+    render(<ProductRegistrationPage />);
+    const groups = screen.getByRole("region", { name: "گروه / دسته اصلی" });
+    fireEvent.click(within(groups).getByRole("button", { name: "افزودن گروه اصلی" }));
+    fireEvent.change(within(groups).getByRole("textbox", { name: "نام گروه اصلی جدید" }), { target: { value: "النگو" } });
+    fireEvent.click(within(groups).getByRole("button", { name: "ثبت گروه اصلی" }));
+    expect(within(groups).getByRole("button", { name: "النگو" })).toBeInTheDocument();
+    fireEvent.click(within(groups).getByRole("button", { name: "حذف گروه اصلی" }));
+    expect(within(groups).queryByRole("button", { name: "النگو" })).not.toBeInTheDocument();
+  });
+
+  it("adds and removes workshop choices locally", () => {
+    render(<ProductRegistrationPage />);
+    fireEvent.click(screen.getByRole("button", { name: "افزودن کارگاه" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "نام کارگاه جدید" }), { target: { value: "کارگاه نمونه" } });
+    fireEvent.click(screen.getByRole("button", { name: "ثبت کارگاه" }));
+    expect(screen.getByRole("combobox", { name: "کارگاه / سازنده" })).toHaveValue("کارگاه نمونه");
+    fireEvent.click(screen.getByRole("button", { name: "حذف کارگاه" }));
+    expect(screen.getByRole("combobox", { name: "کارگاه / سازنده" })).toHaveValue("کارگاه طلای پارسیان");
+    expect(screen.queryByRole("option", { name: "کارگاه نمونه" })).not.toBeInTheDocument();
   });
 
   it("shows the approved local ring and a fixed label preview even when fields change", () => {

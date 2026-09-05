@@ -1,14 +1,16 @@
-import { ArrowUp, ChevronDown, ChevronRight, ChevronsDown, Crosshair, Database, Home, ImagePlus, Printer, PrinterCheck, Save, ScanBarcode, Scale, Trash2, Undo2 } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, ChevronRight, ChevronsDown, Crosshair, Database, Home, ImagePlus, Plus, Printer, PrinterCheck, Save, ScanBarcode, Scale, Trash2, Undo2, X } from "lucide-react";
 import { ChangeEvent, useRef, useState } from "react";
 import { categoryAssets, referenceAssets } from "../../assets/reference";
 import "./product-registration.css";
 
-const categories = [
+const initialCategories = [
   { name: "انگشتر", image: categoryAssets[0], children: ["انگشتر مردانه", "انگشتر زنانه", "انگشتر نگین دار"] },
   { name: "دستبند", image: categoryAssets[1], children: ["دستبند زنانه", "دستبند مردانه"] },
   { name: "سرویس", image: categoryAssets[5], children: ["سرویس کامل", "نیم ست"] },
   { name: "گردنبند", image: categoryAssets[2], children: ["گردنبند زنانه", "گردنبند مردانه"] },
-] as const;
+];
+
+const initialMakers = ["کارگاه طلای پارسیان", "کارگاه مرکزی"];
 
 const initialFields = {
   name: "انگشتر طرح نگین خورشیدی", code: "R-250904-00125", weight: "4.385",
@@ -19,6 +21,7 @@ const initialFields = {
 const previewNotice = "پیش‌نمایش رابط کاربری — هیچ اطلاعاتی ذخیره یا چاپ نمی‌شود.";
 
 export function ProductRegistrationPage() {
+  const [categories, setCategories] = useState(initialCategories);
   const [categoryIndex, setCategoryIndex] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<number | null>(0);
   const [subcategory, setSubcategory] = useState("انگشتر زنانه");
@@ -26,6 +29,11 @@ export function ProductRegistrationPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(referenceAssets.productRegistrationRing);
   const [inInventory, setInInventory] = useState(true);
   const [notice, setNotice] = useState(previewNotice);
+  const [groupEditorOpen, setGroupEditorOpen] = useState(false);
+  const [groupDraft, setGroupDraft] = useState("");
+  const [makers, setMakers] = useState(initialMakers);
+  const [makerEditorOpen, setMakerEditorOpen] = useState(false);
+  const [makerDraft, setMakerDraft] = useState("");
   const imageInput = useRef<HTMLInputElement>(null);
 
   const updateField = (name: keyof typeof initialFields, value: string) => setFields(current => ({ ...current, [name]: value }));
@@ -39,6 +47,39 @@ export function ProductRegistrationPage() {
   const clearImage = () => {
     setImagePreview(null);
     if (imageInput.current) imageInput.current.value = "";
+  };
+  const addCategory = () => {
+    const name = groupDraft.trim();
+    if (!name || categories.some(category => category.name === name)) return;
+    const next = { name, image: categoryAssets[0], children: ["دسته جدید"] };
+    setCategories(current => [...current, next]);
+    setCategoryIndex(categories.length);
+    setExpandedCategory(categories.length);
+    setSubcategory(next.children[0]);
+    setGroupDraft("");
+    setGroupEditorOpen(false);
+  };
+  const removeCategory = () => {
+    if (categories.length === 1) return;
+    const next = categories.filter((_, index) => index !== categoryIndex);
+    setCategories(next);
+    setCategoryIndex(0);
+    setExpandedCategory(0);
+    setSubcategory(next[0].children[0]);
+  };
+  const addMaker = () => {
+    const name = makerDraft.trim();
+    if (!name || makers.includes(name)) return;
+    setMakers(current => [...current, name]);
+    updateField("maker", name);
+    setMakerDraft("");
+    setMakerEditorOpen(false);
+  };
+  const removeMaker = () => {
+    if (makers.length === 1) return;
+    const next = makers.filter(maker => maker !== fields.maker);
+    setMakers(next);
+    updateField("maker", next[0]);
   };
   const clearForm = () => {
     setFields({ ...initialFields, name: "", code: "", weight: "", manualWeight: "", size: "", note: "" });
@@ -62,7 +103,18 @@ export function ProductRegistrationPage() {
           <h2 className="registration-surface-title">اطلاعات محصول</h2>
           <div className="registration-workspace">
             <section className="registration-categories registration-panel" aria-labelledby="registration-category-title">
-              <h3 id="registration-category-title">گروه / دسته اصلی</h3>
+              <div className="registration-section-title-row">
+                <h3 id="registration-category-title">گروه / دسته اصلی</h3>
+                <span className="registration-inline-actions">
+                  <button type="button" aria-label="افزودن گروه اصلی" title="افزودن گروه اصلی" onClick={() => setGroupEditorOpen(true)}><Plus size={14} /></button>
+                  <button type="button" aria-label="حذف گروه اصلی" title="حذف گروه اصلی" disabled={categories.length === 1} onClick={removeCategory}><Trash2 size={13} /></button>
+                </span>
+              </div>
+              {groupEditorOpen && <div className="registration-manager-row">
+                <input autoFocus aria-label="نام گروه اصلی جدید" placeholder="نام گروه جدید" value={groupDraft} onChange={event => setGroupDraft(event.target.value)} onKeyDown={event => event.key === "Enter" && (event.preventDefault(), addCategory())} />
+                <button type="button" aria-label="ثبت گروه اصلی" onClick={addCategory}><Check size={14} /></button>
+                <button type="button" aria-label="انصراف افزودن گروه" onClick={() => { setGroupEditorOpen(false); setGroupDraft(""); }}><X size={14} /></button>
+              </div>}
               {categories.map((category, index) => (
                 <div className="registration-category-branch" key={category.name}>
                   <button type="button" className={`registration-category-toggle${categoryIndex === index ? " selected" : ""}`} aria-expanded={expandedCategory === index} aria-controls={`registration-category-${index}`} onClick={() => {
@@ -91,7 +143,7 @@ export function ProductRegistrationPage() {
                 <section className="registration-weight registration-panel" aria-label="وزن محصول">
                   <label className="registration-field" htmlFor="registration-weight"><span>وزن (گرم)</span></label>
                   <div className="registration-scale-input"><input id="registration-weight" aria-label="وزن (گرم)" inputMode="decimal" dir="ltr" value={fields.weight} onChange={event => updateField("weight", event.target.value)} /><button type="button" disabled title="فقط نمایشی؛ ترازو متصل نیست"><ArrowUp size={18} />دریافت از ترازو</button></div>
-                  <label className="registration-field registration-manual-weight"><span>وزن دستی (گرم)</span><input inputMode="decimal" dir="ltr" value={fields.manualWeight} onChange={event => updateField("manualWeight", event.target.value)} /></label>
+                  <label className="registration-field registration-manual-weight"><span>وزن نگین (گرم)</span><input inputMode="decimal" dir="ltr" value={fields.manualWeight} onChange={event => updateField("manualWeight", event.target.value)} /></label>
                 </section>
                 <section className="registration-specifications registration-panel" aria-label="مشخصات محصول">
                   <label className="registration-field"><span>عیار <i aria-hidden="true">*</i></span><select aria-label="عیار" value={fields.purity} onChange={event => updateField("purity", event.target.value)}><option value="750">750 (18K)</option><option value="875">875 (21K)</option><option value="916">916 (22K)</option></select></label>
@@ -115,7 +167,11 @@ export function ProductRegistrationPage() {
             </div>
 
             <section className="registration-additional registration-panel" aria-label="اطلاعات تکمیلی">
-              <label className="registration-field"><span>کارگاه / سازنده</span><select value={fields.maker} onChange={event => updateField("maker", event.target.value)}><option>کارگاه طلای پارسیان</option><option>کارگاه مرکزی</option></select></label>
+              <div className="registration-field registration-managed-field">
+                <span className="registration-managed-label">کارگاه / سازنده <span className="registration-inline-actions"><button type="button" aria-label="افزودن کارگاه" title="افزودن کارگاه" onClick={() => setMakerEditorOpen(true)}><Plus size={13} /></button><button type="button" aria-label="حذف کارگاه" title="حذف کارگاه" disabled={makers.length === 1} onClick={removeMaker}><Trash2 size={12} /></button></span></span>
+                <select aria-label="کارگاه / سازنده" value={fields.maker} onChange={event => updateField("maker", event.target.value)}>{makers.map(maker => <option key={maker}>{maker}</option>)}</select>
+                {makerEditorOpen && <div className="registration-manager-row registration-maker-editor"><input autoFocus aria-label="نام کارگاه جدید" placeholder="نام کارگاه جدید" value={makerDraft} onChange={event => setMakerDraft(event.target.value)} onKeyDown={event => event.key === "Enter" && (event.preventDefault(), addMaker())} /><button type="button" aria-label="ثبت کارگاه" onClick={addMaker}><Check size={14} /></button><button type="button" aria-label="انصراف افزودن کارگاه" onClick={() => { setMakerEditorOpen(false); setMakerDraft(""); }}><X size={14} /></button></div>}
+              </div>
               <label className="registration-field"><span>قالب لیبل</span><select value={fields.template} onChange={event => updateField("template", event.target.value)}><option value="default">قالب پیش‌فرض (QR)</option><option value="compact">قالب کوچک</option></select></label>
               <label className="registration-field registration-notes"><span>یادداشت</span><textarea aria-label="یادداشت" maxLength={300} value={fields.note} onChange={event => updateField("note", event.target.value)} /><small dir="ltr">{fields.note.length} / 300</small></label>
             </section>
