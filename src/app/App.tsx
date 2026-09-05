@@ -6,8 +6,15 @@ import { Topbar } from "../components/shell/Topbar";
 import { ProductRegistrationPage } from "../features/products/ProductRegistrationPage";
 import { OperationsPreviewPage } from "../features/operations/OperationsPreviewPage";
 
+const routes: readonly ShellRoute[] = ["dashboard", "product-registration", "label-print", "label-designer", "packaging", "outbound", "products", "reports", "settings"];
+
+function initialRoute(): ShellRoute {
+  const requested = new URLSearchParams(window.location.search).get("page");
+  return routes.includes(requested as ShellRoute) ? requested as ShellRoute : "dashboard";
+}
+
 export function App(){
-  const [activePage, setActivePage] = useState<ShellRoute>("dashboard");
+  const [activePage, setActivePage] = useState<ShellRoute>(initialRoute);
 
   return <div className="app-shell" data-testid="app-shell">
     <Sidebar activePage={activePage} onNavigate={setActivePage}/>

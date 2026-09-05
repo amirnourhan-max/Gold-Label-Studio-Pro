@@ -28,4 +28,13 @@ describe("Gold Label Studio Pro shell", () => {
     expect(screen.getByTestId("product-registration-page")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ثبت محصول" })).toHaveAttribute("aria-current", "page");
   });
+
+  it("opens visual-check pages directly from the page query", () => {
+    window.history.replaceState({}, "", "/?page=packaging");
+    render(<App />);
+
+    expect(screen.getByTestId("packaging-page")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "بسته‌بندی ‹" })).toHaveAttribute("aria-current", "page");
+    window.history.replaceState({}, "", "/");
+  });
 });

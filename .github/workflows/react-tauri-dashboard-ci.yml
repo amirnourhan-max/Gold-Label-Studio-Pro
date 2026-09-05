@@ -57,12 +57,20 @@ jobs:
             if (!(Test-Path $edge)) { $edge = "C:\Program Files\Microsoft\Edge\Application\msedge.exe" }
             if (!(Test-Path $edge)) { throw "Microsoft Edge executable not found" }
 
-            $output = "$pwd\visual-checks\dashboard-1600x900.png"
-            & $edge --headless --disable-gpu --hide-scrollbars --window-size=1600,900 --screenshot="$output" http://127.0.0.1:4173 | Out-Null
-            for ($wait = 0; $wait -lt 30 -and !(Test-Path $output); $wait++) {
-              Start-Sleep -Milliseconds 500
+            $checks = @(
+              @{ Name = "dashboard-1600x900"; Page = "dashboard"; Size = "1600,900" },
+              @{ Name = "label-designer-1448x1086"; Page = "label-designer"; Size = "1448,1086" },
+              @{ Name = "packaging-1448x1086"; Page = "packaging"; Size = "1448,1086" }
+            )
+            foreach ($check in $checks) {
+              $output = "$pwd\visual-checks\$($check.Name).png"
+              $url = "http://127.0.0.1:4173/?page=$($check.Page)"
+              & $edge --headless --disable-gpu --hide-scrollbars --window-size=$($check.Size) --screenshot="$output" $url | Out-Null
+              for ($wait = 0; $wait -lt 30 -and !(Test-Path $output); $wait++) {
+                Start-Sleep -Milliseconds 500
+              }
+              if (!(Test-Path $output)) { throw "Visual check was not created: $($check.Name)" }
             }
-            if (!(Test-Path $output)) { throw "Dashboard screenshot was not created" }
           } finally {
             if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
           }
