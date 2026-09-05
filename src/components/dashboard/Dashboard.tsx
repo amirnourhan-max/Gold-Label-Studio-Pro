@@ -1,6 +1,6 @@
 import {
-  BarChart3, CirclePlus, Crown, FileText, Gift, LogOut, Package,
-  Palette, Printer, ScanLine, Scale, Settings, UserPlus,
+  BarChart3, CirclePlus, Crown, Gift, LogOut, Package,
+  Palette, Printer, ScanLine, Scale, Settings,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { categoryAssets, referenceAssets } from "../../assets/reference";
@@ -95,7 +95,7 @@ function RecentActivity() {
 
 const quick = [
   ["محصول جدید", CirclePlus], ["چاپ لیبل", Printer], ["خروج کالا", LogOut], ["طراحی لیبل", Palette],
-  ["مشتری جدید", UserPlus], ["سفارش جدید", FileText], ["گزارش‌گیری", BarChart3], ["تنظیمات", Settings],
+  ["گزارش‌گیری", BarChart3], ["تنظیمات", Settings],
 ] as const;
 
 function QuickActions({ onNewProduct }: { onNewProduct?: () => void }) {

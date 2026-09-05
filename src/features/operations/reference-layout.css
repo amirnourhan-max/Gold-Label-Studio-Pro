@@ -6,6 +6,9 @@
 .packaging-page > .data-panel { grid-column: 1; }
 .package-label-panel { grid-column: 2; grid-row: 3 / span 2; }
 .package-label-panel, .outbound-detail section { background: #111e27; border: 1px solid #35434d; border-radius: 10px; padding: 14px; }
+.package-label-reference { width: 100%; display: block; object-fit: contain; border-radius: 12px; background: #fff; }
+.label-art { background-image: url("../../assets/reference/designer-label.webp"), linear-gradient(#1e344040 1px, transparent 1px), linear-gradient(90deg, #1e344040 1px, transparent 1px); background-repeat: no-repeat, repeat, repeat; background-position: center, center, center; background-size: min(62%, 620px) auto, 32px 32px, 32px 32px; }
+.label-art > img { visibility: hidden; }
 .package-label-sheet { background: #fafafa; color: #151515; border-radius: 12px; padding: 20px; min-height: 290px; }
 .package-brand { width: 44px; float: right; margin-left: 12px; }
 .package-label-totals { display: flex; gap: 10px; border-top: 1px dashed #888; margin-top: 24px; padding-top: 20px; }

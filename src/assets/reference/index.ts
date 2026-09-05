@@ -5,6 +5,8 @@ import devices from "./devices.webp";
 import trustArtwork from "./trust-artwork.webp";
 import productRegistrationRing from "./product-registration-ring.webp";
 import productRegistrationLabel from "./product-registration-label.webp";
+import designerLabel from "./designer-label.webp";
+import packageLabel from "./package-label.webp";
 
 import categoryRing from "./category-ring.webp";
 import categoryBracelet from "./category-bracelet.webp";
@@ -22,6 +24,8 @@ export const referenceAssets = {
   trustArtwork,
   productRegistrationRing,
   productRegistrationLabel,
+  designerLabel,
+  packageLabel,
 } as const;
 
 export const categoryAssets = [

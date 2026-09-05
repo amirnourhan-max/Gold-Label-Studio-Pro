@@ -19,7 +19,7 @@ export function Topbar() {
     <header className="topbar" data-testid="window-drag-region" data-tauri-drag-region>
       <div className="search-box">
         <Search size={19}/>
-        <input aria-label="جستجو" placeholder="جستجو در محصولات، مشتریان، سفارش‌ها..."/>
+        <input aria-label="جستجو" placeholder="جستجو در محصولات، کد و مشخصات..."/>
         <kbd>Ctrl + K</kbd>
       </div>
 

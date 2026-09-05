@@ -1,7 +1,7 @@
-import { BarChart3, Boxes, CirclePlus, ClipboardList, Database, Home, LogOut, Palette, Printer, Settings, ShoppingBag, Users, Scale } from "lucide-react";
+import { BarChart3, Boxes, CirclePlus, Database, Home, LogOut, Palette, Printer, Settings, ShoppingBag, Scale } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
 
-export type ShellRoute = "dashboard" | "product-registration" | "label-print" | "label-designer" | "packaging" | "outbound" | "products" | "customers" | "orders" | "reports" | "settings";
+export type ShellRoute = "dashboard" | "product-registration" | "label-print" | "label-designer" | "packaging" | "outbound" | "products" | "reports" | "settings";
 
 type NavigationItem = {
   label: string;
@@ -17,8 +17,6 @@ const nav: readonly NavigationItem[] = [
   { label: "چاپ لیبل", Icon: Printer, route: "label-print", chevron: true },
   { label: "طراحی لیبل", Icon: Palette, route: "label-designer", chevron: true },
   { label: "بسته‌بندی", Icon: Boxes, route: "packaging", chevron: true },
-  { label: "مشتریان", Icon: Users, route: "customers", chevron: true },
-  { label: "سفارش‌ها", Icon: ClipboardList, route: "orders", chevron: true },
   { label: "خروج کالا", Icon: LogOut, route: "outbound", chevron: true },
   { label: "گزارش‌ها", Icon: BarChart3, route: "reports" },
   { label: "تنظیمات", Icon: Settings, route: "settings" },

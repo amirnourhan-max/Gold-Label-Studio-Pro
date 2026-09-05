@@ -1,13 +1,9 @@
-import { Printer, Play, Square, Trash2, FileText } from "lucide-react";
+import { Play, Square, Trash2, FileText } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
 
 export function PackageLabelPreview() {
   return <aside className="package-label-panel"><h2>پیش‌نمایش لیبل بسته</h2>
-    <div className="package-label-sheet"><img className="package-brand" src={referenceAssets.brandDiamond} alt="لوگوی الماس Gold Label" />
-      <strong dir="ltr">GOLD LABEL<br/>STUDIO PRO</strong><p>کد بسته</p><b dir="ltr">PK-250604-00125</b>
-      <div className="package-label-totals"><span>تعداد اقلام<b>12</b></span><span>وزن کل<b dir="ltr">483.725 g</b></span></div>
-      <p className="label-placeholder">جایگاه QR و بارکد بسته</p>
-    </div>
+    <img className="package-label-reference" src={referenceAssets.packageLabel} alt="پیش‌نمایش کامل لیبل بسته" />
   </aside>;
 }
 
