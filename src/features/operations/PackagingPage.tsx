@@ -2,7 +2,7 @@ import {
   Box, Check, CheckCircle2, Clock3, Hash, Keyboard, PackagePlus, Printer,
   QrCode, ScanBarcode, Trash2, UserRound, Weight, XCircle,
 } from "lucide-react";
-import { referenceAssets } from "../../assets/reference";
+import { categoryAssets, referenceAssets } from "../../assets/reference";
 import "./packaging-page.css";
 
 const packageItems = [
@@ -55,8 +55,14 @@ export function PackagingPage() {
         </section>
 
         <div className="packaging-feedback">
-          <article className="duplicate" role="alert" aria-label="محصول تکراری"><XCircle size={32} /><div><b>محصول تکراری</b><p>این محصول قبلاً به بسته اضافه شده است</p><small dir="ltr">R-250604-00125</small></div></article>
-          <article className="accepted" role="status" aria-label="اسکن موفق"><CheckCircle2 size={32} /><div><b>محصول با موفقیت اضافه شد</b><p>انگشتر طرح گل به بسته جاری افزوده شد</p><small dir="ltr">4.385 g　|　R-250604-00125</small></div></article>
+          <article className="duplicate" role="alert" aria-label="محصول تکراری">
+            <header><span><XCircle size={18} /><b>محصول تکراری</b></span><time dir="ltr">10:24:18</time></header>
+            <div><img src={referenceAssets.productRegistrationRing} alt="تصویر محصول تکراری" /><p>این محصول قبلاً در بسته فعلی اسکن شده است<small dir="ltr">R-250604-00125</small></p></div>
+          </article>
+          <article className="accepted" role="status" aria-label="اسکن موفق">
+            <header><span><CheckCircle2 size={18} /><b>محصول با موفقیت اضافه شد</b></span><time dir="ltr">10:24:15</time></header>
+            <div><img src={categoryAssets[4]} alt="تصویر محصول اسکن‌شده" /><p>پلاک اسم محمد به بسته اضافه شد<small dir="ltr">P-250604-00099　|　1.850 g</small></p></div>
+          </article>
         </div>
       </div>
 
@@ -77,8 +83,8 @@ export function PackagingPage() {
           <h2><Printer size={20} /> پیش‌نمایش لیبل بسته</h2>
           <div className="package-label-art">
             <img src={referenceAssets.packageLabel} alt="لیبل بسته PK-250604-00125" />
-            <span className="package-label-count">۶</span>
-            <span className="package-label-weight" dir="ltr">24.862 g</span>
+            <span className="package-label-metric package-label-count"><small>تعداد اقلام</small><b>۶</b></span>
+            <span className="package-label-metric package-label-weight"><small>وزن کل</small><b dir="ltr">24.862 g</b></span>
           </div>
           <button type="button"><Printer size={18} />چاپ لیبل بسته</button>
         </section>

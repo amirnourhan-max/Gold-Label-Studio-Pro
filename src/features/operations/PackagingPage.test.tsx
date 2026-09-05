@@ -22,6 +22,10 @@ describe("approved packaging workspace", () => {
     expect(within(table).getByText("24.862 g")).toBeInTheDocument();
     expect(screen.getByRole("alert", { name: "محصول تکراری" })).toBeInTheDocument();
     expect(screen.getByRole("status", { name: "اسکن موفق" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "تصویر محصول تکراری" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "تصویر محصول اسکن‌شده" })).toBeInTheDocument();
+    expect(screen.getByText("10:24:18")).toBeInTheDocument();
+    expect(screen.getByText("10:24:15")).toBeInTheDocument();
   });
 
   it("shows complete current-package details beside the printable label", () => {
