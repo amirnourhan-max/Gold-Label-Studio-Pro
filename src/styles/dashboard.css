@@ -258,7 +258,7 @@
   .categories-panel{min-height:360px}
   .dashboard-devices{grid-template-columns:1fr;grid-auto-rows:112px}
 }
-@media(max-height:720px) and (min-width:1181px){
+@media(max-height:850px) and (min-width:1181px){
   .dashboard{gap:8px;padding:22px 0 10px;overflow:auto;grid-template-rows:96px 205px 220px 112px;align-content:start}
   .panel{padding:7px 9px}
   .panel-title{height:22px}
