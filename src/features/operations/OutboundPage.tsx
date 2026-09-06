@@ -18,10 +18,10 @@ const scans = [
 ] as const;
 
 const metrics = [
-  { label: "تعداد اسکن شده", value: "۱۲۸", trend: "↑ ۱۲٪", Icon: Barcode, tone: "blue" },
-  { label: "جمع وزن", value: "483.725 g", trend: "↑ ۱۱٪", Icon: Scale, tone: "gold" },
-  { label: "تعداد خطا", value: "۷", trend: "↑ ۴", Icon: TriangleAlert, tone: "red" },
-  { label: "زمان جلسه", value: "۰۰:۲۴:۱۸", trend: "", Icon: Clock3, tone: "green" },
+  { label: "تعداد اسکن شده", value: "۱۲۸", trend: "↑ ۱۲٪", Icon: Barcode, tone: "tone-blue" },
+  { label: "جمع وزن", value: "483.725 g", trend: "↑ ۱۱٪", Icon: Scale, tone: "tone-gold" },
+  { label: "تعداد خطا", value: "۷", trend: "↑ ۴", Icon: TriangleAlert, tone: "tone-red" },
+  { label: "زمان جلسه", value: "۰۰:۲۴:۱۸", trend: "", Icon: Clock3, tone: "tone-green" },
 ] as const;
 
 function ScannerArtwork() {
@@ -65,7 +65,7 @@ export function OutboundPage() {
 
       <aside className="outbound-details" aria-label="جزئیات جلسه خروج کالا">
         <section className="outbound-latest"><h2><i/>آخرین محصول</h2><div><img src={referenceAssets.productRegistrationRing} alt="انگشتر طرح گل"/><article><b>انگشتر طرح گل</b><code dir="ltr">R-250904-00125</code><p><span>گروه<em>انگشتر</em></span><span>وزن<em dir="ltr">4.385 g</em></span></p></article></div></section>
-        <section className="outbound-session"><h2>خلاصه جلسه</h2>{[["تعداد کل","۱۲۸",Barcode,"blue"],["وزن کل","483.725 g",Scale,"gold"],["تعداد خطا","۷",TriangleAlert,"red"],["درصد موفقیت","۹۴.۸۲٪",CheckCircle2,"green"]].map(([name,value,Icon,tone]) => { const MetricIcon = Icon as typeof Barcode; return <p key={name as string}><MetricIcon size={16} className={tone as string}/><span>{name as string}</span><b dir="ltr">{value as string}</b></p>; })}</section>
+        <section className="outbound-session"><h2>خلاصه جلسه</h2>{[["تعداد کل","۱۲۸",Barcode,"tone-blue"],["وزن کل","483.725 g",Scale,"tone-gold"],["تعداد خطا","۷",TriangleAlert,"tone-red"],["درصد موفقیت","۹۴.۸۲٪",CheckCircle2,"tone-green"]].map(([name,value,Icon,tone]) => { const MetricIcon = Icon as typeof Barcode; return <p key={name as string}><MetricIcon size={16} className={tone as string}/><span>{name as string}</span><b dir="ltr">{value as string}</b></p>; })}</section>
       </aside>
     </section>
 

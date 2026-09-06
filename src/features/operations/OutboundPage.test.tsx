@@ -15,6 +15,9 @@ describe("approved outbound workspace", () => {
     expect(screen.getByRole("list", { name: "آمار جلسه خروج کالا" })).toHaveTextContent("۱۲۸");
     expect(screen.getByRole("list", { name: "آمار جلسه خروج کالا" })).toHaveTextContent("483.725 g");
     expect(screen.getByRole("list", { name: "آمار جلسه خروج کالا" })).toHaveTextContent("۰۰:۲۴:۱۸");
+    expect(screen.getByText("جمع وزن").closest("article")).toHaveClass("tone-gold");
+    expect(screen.getByText("زمان جلسه").closest("article")).toHaveClass("tone-green");
+    expect(screen.getByText("زمان جلسه").closest("article")).not.toHaveClass("green");
   });
 
   it("shows both scan outcomes and the complete eight-row history", () => {
