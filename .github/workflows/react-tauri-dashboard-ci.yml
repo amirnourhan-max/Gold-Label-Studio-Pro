@@ -59,9 +59,14 @@ jobs:
 
             $checks = @(
               @{ Name = "dashboard-1600x900"; Page = "dashboard"; Size = "1600,900" },
+              @{ Name = "dashboard-1448x1086"; Page = "dashboard"; Size = "1448,1086" },
+              @{ Name = "dashboard-1280x800"; Page = "dashboard"; Size = "1280,800" },
               @{ Name = "label-designer-1448x1086"; Page = "label-designer"; Size = "1448,1086" },
+              @{ Name = "label-designer-1024x768"; Page = "label-designer"; Size = "1024,768" },
               @{ Name = "packaging-1448x1086"; Page = "packaging"; Size = "1448,1086" },
-              @{ Name = "outbound-1448x1086"; Page = "outbound"; Size = "1448,1086" }
+              @{ Name = "packaging-1024x768"; Page = "packaging"; Size = "1024,768" },
+              @{ Name = "outbound-1448x1086"; Page = "outbound"; Size = "1448,1086" },
+              @{ Name = "outbound-1024x768"; Page = "outbound"; Size = "1024,768" }
             )
             foreach ($check in $checks) {
               $output = "$pwd\visual-checks\$($check.Name).png"
