@@ -43,8 +43,16 @@ describe("Gold Label Studio Pro shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "مرجوع کالا ‹" }));
 
-    expect(screen.getByTestId("outbound-page")).toBeInTheDocument();
+    expect(screen.getByTestId("returns-page")).toHaveClass("returns-workspace");
     expect(screen.getByRole("button", { name: "مرجوع کالا ‹" })).toHaveAttribute("aria-current", "page");
-    expect(screen.queryByRole("button", { name: "خروج کالا ‹" })).not.toBeInTheDocument();
+  });
+
+  it("opens the returns workspace directly from the returns route", () => {
+    window.history.replaceState({}, "", "/?page=returns");
+    render(<App />);
+
+    expect(screen.getByTestId("returns-page")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "مرجوع کالا ‹" })).toHaveAttribute("aria-current", "page");
+    window.history.replaceState({}, "", "/");
   });
 });

@@ -7,14 +7,14 @@ export function PackageLabelPreview() {
   </aside>;
 }
 
-export function OutboundSummary() {
-  return <aside className="outbound-detail"><section><h2>آخرین محصول</h2><div className="last-product"><img src={referenceAssets.productRegistrationRing} alt="انگشتر طرح گل"/><div><b>انگشتر طرح گل</b><p dir="ltr">R-250904-00125</p><span dir="ltr">4.385 g</span></div></div></section>
+export function ReturnsSummary() {
+  return <aside className="returns-detail"><section><h2>آخرین محصول</h2><div className="last-product"><img src={referenceAssets.productRegistrationRing} alt="انگشتر طرح گل"/><div><b>انگشتر طرح گل</b><p dir="ltr">R-250904-00125</p><span dir="ltr">4.385 g</span></div></div></section>
     <section><h2>خلاصه جلسه</h2>{[["تعداد کل","128"],["وزن کل","483.725 g"],["تعداد خطا","7"],["درصد موفقیت","94.82%"]].map(([name,value])=><p className="summary-value" key={name}><span>{name}</span><b dir="ltr">{value}</b></p>)}</section>
   </aside>;
 }
 
-export function OutboundActions() {
-  return <div className="outbound-action-row" aria-label="عملیات خروج کالا">
+export function ReturnsActions() {
+  return <div className="returns-action-row" aria-label="عملیات مرجوع کالا">
     <button type="button" className="green" disabled><Play/>شروع</button>
     <button type="button" className="danger" disabled><Square/>توقف</button>
     <button type="button" disabled><Trash2/>حذف آخرین</button>

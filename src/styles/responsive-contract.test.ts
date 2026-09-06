@@ -10,7 +10,7 @@ describe("responsive layout contract", () => {
       ".product-registration",
       ".label-designer-page",
       ".packaging-workspace",
-      ".outbound-workspace",
+      ".returns-workspace",
       ".ops-page",
     ]) {
       expect(responsiveCss).toContain(selector);

@@ -33,7 +33,7 @@ body,
 .product-registration,
 .label-designer-page,
 .packaging-workspace,
-.outbound-workspace,
+.returns-workspace,
 .ops-page {
   width: 100%;
   max-width: 100%;
@@ -123,13 +123,13 @@ body,
     grid-template-rows: minmax(320px, 1fr);
   }
 
-  .outbound-workspace {
+  .returns-workspace {
     height: auto;
     min-height: 100%;
     overflow: auto;
   }
 
-  .outbound-content {
+  .returns-content {
     grid-template-columns: minmax(0, 1fr) 225px;
   }
 
@@ -293,24 +293,24 @@ body,
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .outbound-metrics {
+  .returns-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .outbound-content {
+  .returns-content {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .outbound-details {
+  .returns-details {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto;
   }
 
-  .outbound-feedback {
+  .returns-feedback {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .outbound-actions {
+  .returns-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -387,8 +387,8 @@ body,
     grid-row: 4;
   }
 
-  .outbound-metrics,
-  .outbound-actions {
+  .returns-metrics,
+  .returns-actions {
     grid-template-columns: minmax(0, 1fr);
   }
 }

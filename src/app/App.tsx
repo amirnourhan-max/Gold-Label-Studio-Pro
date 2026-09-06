@@ -6,7 +6,7 @@ import { Topbar } from "../components/shell/Topbar";
 import { ProductRegistrationPage } from "../features/products/ProductRegistrationPage";
 import { OperationsPreviewPage } from "../features/operations/OperationsPreviewPage";
 
-const routes: readonly ShellRoute[] = ["dashboard", "product-registration", "label-print", "label-designer", "packaging", "outbound", "products", "reports", "settings"];
+const routes: readonly ShellRoute[] = ["dashboard", "product-registration", "label-print", "label-designer", "packaging", "returns", "products", "reports", "settings"];
 
 function initialRoute(): ShellRoute {
   const requested = new URLSearchParams(window.location.search).get("page");

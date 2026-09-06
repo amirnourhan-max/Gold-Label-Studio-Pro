@@ -1,6 +1,6 @@
 import {
-  BarChart3, CirclePlus, Crown, Gift, LogOut, Package,
-  Palette, Printer, ScanLine, Scale, Settings,
+  BarChart3, ChevronDown, CirclePlus, Crown, Gift, Package,
+  Palette, Printer, RotateCcw, ScanLine, Scale, Settings,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { categoryAssets, referenceAssets } from "../../assets/reference";
@@ -8,7 +8,7 @@ import { dashboardFixture } from "./dashboard.fixture";
 
 const metricIcons: Record<string, ComponentType<{ size?: number }>> = {
   weight: Scale,
-  outbound: ScanLine,
+  returns: ScanLine,
   packaged: Gift,
   printed: Printer,
   products: Package,
@@ -77,24 +77,32 @@ function CategoryDonut() {
 }
 
 function RecentActivity() {
+  const activityIcons: Record<string, ComponentType<{ size?: number; strokeWidth?: number }>> = {
+    blue: Printer,
+    green: RotateCcw,
+    gold: CirclePlus,
+    purple: Gift,
+  };
+
   return (
     <section className="panel recent-panel">
       <div className="panel-title"><h3>فعالیت‌های اخیر</h3><a>مشاهده همه</a></div>
       <div className="activity-list">
-        {dashboardFixture.recent.map(([time, title, code, tone]) => (
-          <div className="activity-row" data-testid="recent-activity-row" key={code}>
-            <span className={"activity-icon " + tone}>{tone === "blue" ? "▣" : tone === "green" ? "↗" : tone === "purple" ? "◆" : "◇"}</span>
+        {dashboardFixture.recent.map(([time, title, code, tone]) => {
+          const Icon = activityIcons[tone];
+          return <div className="activity-row" data-testid="recent-activity-row" key={code}>
+            <span className={"activity-icon " + tone} aria-label={title}><Icon size={14} strokeWidth={1.8}/></span>
             <div><b>{title}</b><small>کد: {code}</small></div>
-            <i className={tone}/><time>{time}</time><span>⌄</span>
-          </div>
-        ))}
+            <i className={tone}/><time>{time}</time><ChevronDown className="activity-chevron" size={13}/>
+          </div>;
+        })}
       </div>
     </section>
   );
 }
 
 const quick = [
-  ["محصول جدید", CirclePlus], ["چاپ لیبل", Printer], ["مرجوع کالا", LogOut], ["طراحی لیبل", Palette],
+  ["محصول جدید", CirclePlus], ["چاپ لیبل", Printer], ["مرجوع کالا", RotateCcw], ["طراحی لیبل", Palette],
   ["گزارش‌گیری", BarChart3], ["تنظیمات", Settings],
 ] as const;
 
@@ -150,12 +158,29 @@ function PrintQueue() {
   );
 }
 
+const deviceStatus = [
+  ["ترازوی دیجیتال", "A&D GX-3002A", "0.000 g", "متصل", "scale"],
+  ["چاپگر لیبل", "Zebra ZD421", "آماده", "متصل", "printer"],
+  ["پایگاه داده", "SQL Server 2019", "3ms", "متصل", "database"],
+] as const;
+
+function DeviceStatusStrip() {
+  return <section className="dashboard-devices" aria-label="وضعیت دستگاه‌ها">
+    {deviceStatus.map(([name, model, value, state, artwork]) => <article className="device-card" data-testid="device-card" key={name}>
+      <span className={`device-art ${artwork}`} aria-hidden="true" style={{ backgroundImage: `url(${referenceAssets.devices})` }}/>
+      <div className="device-copy"><div><b>{name}</b><em><i/>{state}</em></div><small>{model}</small></div>
+      <strong dir="ltr">{value}</strong>
+    </article>)}
+  </section>;
+}
+
 export function Dashboard({ onNewProduct }: { onNewProduct?: () => void }) {
   return (
     <main className="dashboard" data-testid="dashboard">
       <section className="dashboard-top">{dashboardFixture.metrics.map((item) => <MetricCard key={item.id} item={item}/>)}<HeroCard/></section>
       <section className="analytics-grid"><DailyActivityChart/><CategoryDonut/><RecentActivity/></section>
       <section className="operations-grid"><QuickActions onNewProduct={onNewProduct}/><CategoryGallery/><PrintQueue/></section>
+      <DeviceStatusStrip/>
     </main>
   );
 }

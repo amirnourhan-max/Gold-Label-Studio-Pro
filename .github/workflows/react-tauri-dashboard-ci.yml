@@ -58,15 +58,18 @@ jobs:
             if (!(Test-Path $edge)) { throw "Microsoft Edge executable not found" }
 
             $checks = @(
-              @{ Name = "dashboard-1600x900"; Page = "dashboard"; Size = "1600,900" },
+              @{ Name = "dashboard-1366x768"; Page = "dashboard"; Size = "1366,768" },
+              @{ Name = "dashboard-1440x900"; Page = "dashboard"; Size = "1440,900" },
               @{ Name = "dashboard-1448x1086"; Page = "dashboard"; Size = "1448,1086" },
-              @{ Name = "dashboard-1280x800"; Page = "dashboard"; Size = "1280,800" },
-              @{ Name = "label-designer-1448x1086"; Page = "label-designer"; Size = "1448,1086" },
-              @{ Name = "label-designer-1024x768"; Page = "label-designer"; Size = "1024,768" },
-              @{ Name = "packaging-1448x1086"; Page = "packaging"; Size = "1448,1086" },
-              @{ Name = "packaging-1024x768"; Page = "packaging"; Size = "1024,768" },
-              @{ Name = "outbound-1448x1086"; Page = "outbound"; Size = "1448,1086" },
-              @{ Name = "outbound-1024x768"; Page = "outbound"; Size = "1024,768" }
+              @{ Name = "dashboard-1536x864"; Page = "dashboard"; Size = "1536,864" },
+              @{ Name = "dashboard-1600x900"; Page = "dashboard"; Size = "1600,900" },
+              @{ Name = "dashboard-1920x1080"; Page = "dashboard"; Size = "1920,1080" },
+              @{ Name = "returns-1366x768"; Page = "returns"; Size = "1366,768" },
+              @{ Name = "returns-1440x900"; Page = "returns"; Size = "1440,900" },
+              @{ Name = "returns-1448x1086"; Page = "returns"; Size = "1448,1086" },
+              @{ Name = "returns-1536x864"; Page = "returns"; Size = "1536,864" },
+              @{ Name = "returns-1600x900"; Page = "returns"; Size = "1600,900" },
+              @{ Name = "returns-1920x1080"; Page = "returns"; Size = "1920,1080" }
             )
             foreach ($check in $checks) {
               $output = "$pwd\visual-checks\$($check.Name).png"

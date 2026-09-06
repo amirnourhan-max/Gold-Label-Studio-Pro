@@ -1,7 +1,7 @@
 import { BarChart3, Boxes, CirclePlus, Database, Home, Palette, Printer, RotateCcw, Settings, ShoppingBag, Scale } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
 
-export type ShellRoute = "dashboard" | "product-registration" | "label-print" | "label-designer" | "packaging" | "outbound" | "products" | "reports" | "settings";
+export type ShellRoute = "dashboard" | "product-registration" | "label-print" | "label-designer" | "packaging" | "returns" | "products" | "reports" | "settings";
 
 type NavigationItem = {
   label: string;
@@ -17,7 +17,7 @@ const nav: readonly NavigationItem[] = [
   { label: "چاپ لیبل", Icon: Printer, route: "label-print", chevron: true },
   { label: "طراحی لیبل", Icon: Palette, route: "label-designer", chevron: true },
   { label: "بسته‌بندی", Icon: Boxes, route: "packaging", chevron: true },
-  { label: "مرجوع کالا", Icon: RotateCcw, route: "outbound", chevron: true },
+  { label: "مرجوع کالا", Icon: RotateCcw, route: "returns", chevron: true },
   { label: "گزارش‌ها", Icon: BarChart3, route: "reports" },
   { label: "تنظیمات", Icon: Settings, route: "settings" },
 ] as const;

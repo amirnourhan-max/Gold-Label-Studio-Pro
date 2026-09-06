@@ -1,12 +1,12 @@
 export type MetricTone = "gold" | "blue" | "purple" | "green";
 export interface MetricItem {
-  id: "weight" | "outbound" | "packaged" | "printed" | "products";
+  id: "weight" | "returns" | "packaged" | "printed" | "products";
   label: string; value: string; unit: string; delta: string; hint: string; tone: MetricTone;
 }
 export const dashboardFixture = {
   metrics: [
     { id:"weight",label:"وزن کل امروز",value:"۴۸۳.۷۲۵",unit:"گرم",delta:"+11%",hint:"نسبت به دیروز",tone:"gold" },
-    { id:"outbound",label:"مرجوعی اسکن شده",value:"۷۶",unit:"عدد",delta:"+8%",hint:"نسبت به دیروز",tone:"green" },
+    { id:"returns",label:"مرجوعی اسکن شده",value:"۷۶",unit:"عدد",delta:"+8%",hint:"نسبت به دیروز",tone:"green" },
     { id:"packaged",label:"آیتم‌های بسته‌بندی شده",value:"۹۴",unit:"عدد",delta:"+5%",hint:"نسبت به دیروز",tone:"purple" },
     { id:"printed",label:"لیبل‌های چاپ شده",value:"۱۲۶",unit:"عدد",delta:"+9%",hint:"نسبت به دیروز",tone:"blue" },
     { id:"products",label:"محصولات امروز",value:"۱۲۸",unit:"عدد",delta:"+12%",hint:"نسبت به دیروز",tone:"gold" }

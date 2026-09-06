@@ -6,10 +6,10 @@ afterEach(cleanup);
 
 describe("approved returns workspace", () => {
   it("matches the approved scanning hierarchy and four live metrics", () => {
-    render(<OperationsPreviewPage mode="outbound" />);
+    render(<OperationsPreviewPage mode="returns" />);
 
-    const page = screen.getByTestId("outbound-page");
-    expect(page).toHaveClass("outbound-workspace");
+    const page = screen.getByTestId("returns-page");
+    expect(page).toHaveClass("returns-workspace");
     expect(screen.getByRole("heading", { name: "مرجوع کالا", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("اسکن و ثبت مرجوع محصولات به انبار")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "اسکن بارکد مرجوع کالا" })).toBeInTheDocument();
@@ -26,7 +26,7 @@ describe("approved returns workspace", () => {
   });
 
   it("shows both scan outcomes and the complete eight-row history", () => {
-    render(<OperationsPreviewPage mode="outbound" />);
+    render(<OperationsPreviewPage mode="returns" />);
 
     expect(screen.getByRole("alert", { name: "بارکد تکراری" })).toBeInTheDocument();
     expect(screen.getByRole("status", { name: "اسکن موفق" })).toBeInTheDocument();
@@ -39,7 +39,7 @@ describe("approved returns workspace", () => {
   });
 
   it("keeps the latest product, session summary, and four footer actions visible", () => {
-    render(<OperationsPreviewPage mode="outbound" />);
+    render(<OperationsPreviewPage mode="returns" />);
 
     const details = screen.getByRole("complementary", { name: "جزئیات جلسه مرجوع کالا" });
     expect(within(details).getByRole("img", { name: "انگشتر طرح گل" })).toBeInTheDocument();
