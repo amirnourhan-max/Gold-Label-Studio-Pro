@@ -43,7 +43,7 @@ function DailyActivityChart() {
   return (
     <section className="panel chart-panel" data-testid="daily-activity-chart">
       <div className="panel-title"><h3>نمودار فعالیت روزانه</h3><button>۷ روز گذشته⌄</button></div>
-      <div className="legend"><span className="l-gold">محصولات</span><span className="l-blue">لیبل چاپ شده</span><span className="l-purple">بسته‌بندی</span><span className="l-cyan">خروج کالا</span></div>
+      <div className="legend"><span className="l-gold">محصولات</span><span className="l-blue">لیبل چاپ شده</span><span className="l-purple">بسته‌بندی</span><span className="l-cyan">مرجوع کالا</span></div>
       <div className="bars">
         {dashboardFixture.bars.map((set, day) => (
           <div className="bar-group" key={day}>
@@ -94,7 +94,7 @@ function RecentActivity() {
 }
 
 const quick = [
-  ["محصول جدید", CirclePlus], ["چاپ لیبل", Printer], ["خروج کالا", LogOut], ["طراحی لیبل", Palette],
+  ["محصول جدید", CirclePlus], ["چاپ لیبل", Printer], ["مرجوع کالا", LogOut], ["طراحی لیبل", Palette],
   ["گزارش‌گیری", BarChart3], ["تنظیمات", Settings],
 ] as const;
 

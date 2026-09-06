@@ -4,18 +4,22 @@ import { OperationsPreviewPage } from "./OperationsPreviewPage";
 
 afterEach(cleanup);
 
-describe("approved outbound workspace", () => {
+describe("approved returns workspace", () => {
   it("matches the approved scanning hierarchy and four live metrics", () => {
     render(<OperationsPreviewPage mode="outbound" />);
 
     const page = screen.getByTestId("outbound-page");
     expect(page).toHaveClass("outbound-workspace");
-    expect(screen.getByRole("region", { name: "اسکن بارکد خروج کالا" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "مرجوع کالا", level: 1 })).toBeInTheDocument();
+    expect(screen.getByText("اسکن و ثبت مرجوع محصولات به انبار")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "اسکن بارکد مرجوع کالا" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "منتظر اسکن بارکد هستیم..." })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("اسکن کنید یا بارکد را وارد نمایید")).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "آمار جلسه خروج کالا" })).toHaveTextContent("۱۲۸");
-    expect(screen.getByRole("list", { name: "آمار جلسه خروج کالا" })).toHaveTextContent("483.725 g");
-    expect(screen.getByRole("list", { name: "آمار جلسه خروج کالا" })).toHaveTextContent("۰۰:۲۴:۱۸");
-    expect(screen.getByText("جمع وزن").closest("article")).toHaveClass("tone-gold");
+    const metrics = screen.getByRole("list", { name: "آمار جلسه مرجوع کالا" });
+    expect(metrics).toHaveTextContent("۱۲۸");
+    expect(metrics).toHaveTextContent("483.725 g");
+    expect(metrics).toHaveTextContent("۰۰:۲۴:۱۸");
+    expect(within(metrics).getByText("وزن کل مرجوع").closest("article")).toHaveClass("tone-gold");
     expect(screen.getByText("زمان جلسه").closest("article")).toHaveClass("tone-green");
     expect(screen.getByText("زمان جلسه").closest("article")).not.toHaveClass("green");
   });
@@ -26,7 +30,7 @@ describe("approved outbound workspace", () => {
     expect(screen.getByRole("alert", { name: "بارکد تکراری" })).toBeInTheDocument();
     expect(screen.getByRole("status", { name: "اسکن موفق" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "تصویر محصول اسکن‌شده" })).toBeInTheDocument();
-    const history = screen.getByRole("table", { name: "آخرین اسکن‌های خروج کالا" });
+    const history = screen.getByRole("table", { name: "آخرین اسکن‌های مرجوع کالا" });
     expect(within(history).getAllByRole("row")).toHaveLength(9);
     expect(within(history).getAllByText("بارکد تکراری")).toHaveLength(2);
     expect(screen.getByText("نمایش")).toBeInTheDocument();
@@ -36,12 +40,14 @@ describe("approved outbound workspace", () => {
   it("keeps the latest product, session summary, and four footer actions visible", () => {
     render(<OperationsPreviewPage mode="outbound" />);
 
-    const details = screen.getByRole("complementary", { name: "جزئیات جلسه خروج کالا" });
+    const details = screen.getByRole("complementary", { name: "جزئیات جلسه مرجوع کالا" });
     expect(within(details).getByRole("img", { name: "انگشتر طرح گل" })).toBeInTheDocument();
+    expect(within(details).getByRole("heading", { name: "وضعیت اتصال بارکدخوان" })).toBeInTheDocument();
+    expect(within(details).getByRole("button", { name: "تست اتصال" })).toBeInTheDocument();
     expect(within(details).getByText("۹۴.۸۲٪")).toBeInTheDocument();
-    const actions = screen.getByRole("toolbar", { name: "عملیات خروج کالا" });
+    const actions = screen.getByRole("toolbar", { name: "عملیات مرجوع کالا" });
     expect(within(actions).getAllByRole("button").map(button => button.textContent?.trim())).toEqual([
-      "شروع", "توقف", "حذف آخرین", "پایان و گزارش",
+      "شروع", "توقف", "بازگشت آخرین", "پایان و گزارش",
     ]);
   });
 });

@@ -37,4 +37,14 @@ describe("Gold Label Studio Pro shell", () => {
     expect(screen.getByRole("button", { name: "بسته‌بندی ‹" })).toHaveAttribute("aria-current", "page");
     window.history.replaceState({}, "", "/");
   });
+
+  it("opens the returns workspace from the renamed sidebar item", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "مرجوع کالا ‹" }));
+
+    expect(screen.getByTestId("outbound-page")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "مرجوع کالا ‹" })).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByRole("button", { name: "خروج کالا ‹" })).not.toBeInTheDocument();
+  });
 });

@@ -1,7 +1,7 @@
 import {
   ArrowLeft, Barcode, Check, CheckCircle2, ChevronLeft, ChevronRight,
-  CircleHelp, Clock3, FileText, LogOut, Play, Scale, ScanBarcode,
-  Square, Trash2, TriangleAlert, X, XCircle,
+  CircleHelp, Clock3, FileText, Play, RotateCcw, Scale, ScanBarcode,
+  Square, TriangleAlert, Undo2, X, XCircle,
 } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
 import "./outbound-page.css";
@@ -19,7 +19,7 @@ const scans = [
 
 const metrics = [
   { label: "تعداد اسکن شده", value: "۱۲۸", trend: "↑ ۱۲٪", Icon: Barcode, tone: "tone-blue" },
-  { label: "جمع وزن", value: "483.725 g", trend: "↑ ۱۱٪", Icon: Scale, tone: "tone-gold" },
+  { label: "وزن کل مرجوع", value: "483.725 g", trend: "↑ ۱۱٪", Icon: Scale, tone: "tone-gold" },
   { label: "تعداد خطا", value: "۷", trend: "↑ ۴", Icon: TriangleAlert, tone: "tone-red" },
   { label: "زمان جلسه", value: "۰۰:۲۴:۱۸", trend: "", Icon: Clock3, tone: "tone-green" },
 ] as const;
@@ -38,39 +38,42 @@ function ScannerArtwork() {
 export function OutboundPage() {
   return <main className="outbound-workspace" data-testid="outbound-page">
     <header className="outbound-heading">
-      <div className="outbound-title"><span><LogOut size={22}/></span><div><h1>خروج کالا</h1><p>اسکن و ثبت خروج محصولات از انبار</p></div></div>
+      <div className="outbound-title"><span><RotateCcw size={22}/></span><div><h1>مرجوع کالا</h1><p>اسکن و ثبت مرجوع محصولات به انبار</p></div></div>
       <div className="outbound-heading-actions"><button type="button" className="outbound-help"><CircleHelp size={16}/>راهنما</button><button type="button" className="outbound-back"><ArrowLeft size={17}/>بازگشت</button></div>
     </header>
 
-    <section className="outbound-metrics" aria-label="آمار جلسه خروج کالا" role="list">
+    <section className="outbound-metrics" aria-label="آمار جلسه مرجوع کالا" role="list">
       {metrics.map(({ label, value, trend, Icon, tone }) => <article key={label} role="listitem" className={`outbound-metric ${tone}`}>
         <span className="outbound-metric-icon"><Icon size={27}/></span><div><small>{label}</small><strong dir={value.includes("g") ? "ltr" : undefined}>{value}</strong>{trend ? <em>{trend}</em> : null}</div>
       </article>)}
     </section>
 
-    <section className="outbound-scan-panel" aria-label="اسکن بارکد خروج کالا">
-      <ScannerArtwork/><div className="outbound-scan-copy"><h2>منتظر اسکن...</h2><p>بارکد محصول را اسکن کنید</p><label><ScanBarcode size={23}/><input aria-label="بارکد محصول" placeholder="اسکن کنید یا بارکد را وارد نمایید" /></label><small>برای اسکن سریع‌تر از بارکدخوان استفاده کنید</small></div>
-    </section>
+    <section className="outbound-content">
+      <div className="outbound-primary">
+        <section className="outbound-scan-panel" aria-label="اسکن بارکد مرجوع کالا">
+          <ScannerArtwork/><div className="outbound-scan-copy"><h2>منتظر اسکن بارکد هستیم...</h2><p>بارکد محصول را اسکن کنید</p><label><ScanBarcode size={23}/><input aria-label="بارکد محصول" placeholder="اسکن کنید یا بارکد را وارد نمایید" /></label><small>برای اسکن سریع‌تر از بارکدخوان استفاده کنید</small></div>
+        </section>
 
-    <section className="outbound-feedback">
-      <article className="outbound-error" role="alert" aria-label="بارکد تکراری"><span><X size={28}/></span><div><b>بارکد تکراری</b><p>این بارکد قبلاً ثبت شده است</p><small dir="ltr">کد:　R-250904-00125　|　10:34:22</small></div></article>
-      <article className="outbound-success" role="status" aria-label="اسکن موفق"><span><Check size={28}/></span><div><b>اسکن موفق</b><p>انگشتر طرح گل</p><small dir="ltr">R-250904-00125　|　4.385 g</small></div><img src={referenceAssets.productRegistrationRing} alt="تصویر محصول اسکن‌شده" /></article>
-    </section>
+        <section className="outbound-feedback">
+          <article className="outbound-error" role="alert" aria-label="بارکد تکراری"><span><X size={28}/></span><div><b>بارکد تکراری</b><p>این بارکد قبلاً ثبت شده است</p><small dir="ltr">کد:　R-250904-00125　|　10:22:18</small></div></article>
+          <article className="outbound-success" role="status" aria-label="اسکن موفق"><span><Check size={28}/></span><div><b>اسکن موفق</b><p>ثبت مرجوع با موفقیت انجام شد</p><small dir="ltr">R-250904-00125　|　4.385 g</small></div><img src={referenceAssets.productRegistrationRing} alt="تصویر محصول اسکن‌شده" /></article>
+        </section>
 
-    <section className="outbound-lower">
-      <section className="outbound-history"><h2>آخرین اسکن‌ها</h2><table aria-label="آخرین اسکن‌های خروج کالا"><thead><tr><th>ردیف</th><th>زمان</th><th>کد</th><th>نام محصول</th><th>گروه</th><th>وزن</th><th>وضعیت</th></tr></thead><tbody>{scans.map(row => {
+        <section className="outbound-history"><h2>آخرین اسکن‌ها</h2><table aria-label="آخرین اسکن‌های مرجوع کالا"><thead><tr><th>ردیف</th><th>زمان</th><th>کد محصول</th><th>نام محصول</th><th>گروه</th><th>وزن</th><th>وضعیت</th></tr></thead><tbody>{scans.map(row => {
         const duplicate = row[6] === "بارکد تکراری";
         return <tr key={`${row[0]}-${row[2]}`} className={duplicate ? "duplicate" : undefined}>{row.slice(0, 6).map((cell, index) => <td key={index} dir={index === 1 || index === 2 || index === 5 ? "ltr" : undefined}>{cell}</td>)}<td><span className={duplicate ? "scan-state duplicate" : "scan-state ok"}>{duplicate ? <XCircle size={14}/> : <CheckCircle2 size={14}/>} {row[6]}</span></td></tr>;
       })}</tbody></table><footer><label><i>نمایش</i><span><b>۵۰</b>⌄</span><i>مورد</i></label><nav aria-label="صفحه‌بندی اسکن‌ها"><button aria-label="صفحه بعد"><ChevronRight size={15}/></button><button>۱</button><button>۲</button><button>۳</button><button aria-label="صفحه قبل"><ChevronLeft size={15}/></button></nav></footer></section>
 
-      <aside className="outbound-details" aria-label="جزئیات جلسه خروج کالا">
-        <section className="outbound-latest"><h2><i/>آخرین محصول</h2><div><img src={referenceAssets.productRegistrationRing} alt="انگشتر طرح گل"/><article><b>انگشتر طرح گل</b><code dir="ltr">R-250904-00125</code><p><span>گروه<em>انگشتر</em></span><span>وزن<em dir="ltr">4.385 g</em></span></p></article></div></section>
-        <section className="outbound-session"><h2>خلاصه جلسه</h2>{[["تعداد کل","۱۲۸",Barcode,"tone-blue"],["وزن کل","483.725 g",Scale,"tone-gold"],["تعداد خطا","۷",TriangleAlert,"tone-red"],["درصد موفقیت","۹۴.۸۲٪",CheckCircle2,"tone-green"]].map(([name,value,Icon,tone]) => { const MetricIcon = Icon as typeof Barcode; return <p key={name as string}><MetricIcon size={16} className={tone as string}/><span>{name as string}</span><b dir="ltr">{value as string}</b></p>; })}</section>
+        <div className="outbound-actions" role="toolbar" aria-label="عملیات مرجوع کالا">
+          <button type="button" className="start"><Play size={21} fill="currentColor"/>شروع</button><button type="button" className="stop"><Square size={20} fill="currentColor"/>توقف</button><button type="button" className="remove"><Undo2 size={21}/>بازگشت آخرین</button><button type="button" className="report"><FileText size={21}/>پایان و گزارش</button>
+        </div>
+      </div>
+
+      <aside className="outbound-details" aria-label="جزئیات جلسه مرجوع کالا">
+        <section className="outbound-latest"><h2><i/>آخرین محصول اسکن شده</h2><div><img src={referenceAssets.productRegistrationRing} alt="انگشتر طرح گل"/><article><b>انگشتر طرح گل</b><code dir="ltr">R-250904-00125</code><strong dir="ltr">4.385 g <small>وزن</small></strong><p><span>گروه</span><em>انگشتر</em></p></article></div></section>
+        <section className="outbound-reader"><h2><i/>وضعیت اتصال بارکدخوان</h2><div><span><ScanBarcode size={40}/></span><article><b>متصل</b><p dir="ltr">COM3　|　9600</p><button type="button">تست اتصال</button></article></div></section>
+        <section className="outbound-session"><h2>خلاصه جلسه</h2>{[["تعداد کل","۱۲۸",Barcode,"tone-blue"],["وزن کل مرجوع","483.725 g",Scale,"tone-gold"],["تعداد خطا","۷",TriangleAlert,"tone-red"],["درصد موفقیت","۹۴.۸۲٪",CheckCircle2,"tone-green"]].map(([name,value,Icon,tone]) => { const MetricIcon = Icon as typeof Barcode; return <p key={name as string}><MetricIcon size={16} className={tone as string}/><span>{name as string}</span><b dir="ltr">{value as string}</b></p>; })}</section>
       </aside>
     </section>
-
-    <div className="outbound-actions" role="toolbar" aria-label="عملیات خروج کالا">
-      <button type="button" className="start"><Play size={21} fill="currentColor"/>شروع</button><button type="button" className="stop"><Square size={20} fill="currentColor"/>توقف</button><button type="button" className="remove"><Trash2 size={21}/>حذف آخرین</button><button type="button" className="report"><FileText size={21}/>پایان و گزارش</button>
-    </div>
   </main>;
 }
