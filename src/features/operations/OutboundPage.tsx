@@ -52,7 +52,7 @@ export function OutboundPage() {
     <section className="outbound-content">
       <div className="outbound-primary">
         <section className="outbound-scan-panel" aria-label="اسکن بارکد مرجوع کالا">
-          <ScannerArtwork/><div className="outbound-scan-copy"><h2>منتظر اسکن بارکد هستیم...</h2><p>بارکد محصول را اسکن کنید</p><label><ScanBarcode size={23}/><input aria-label="بارکد محصول" placeholder="اسکن کنید یا بارکد را وارد نمایید" /></label><small>برای اسکن سریع‌تر از بارکدخوان استفاده کنید</small></div>
+          <img className="outbound-scanner-reference" src={referenceAssets.barcodeScannerReference} alt="بارکدخوان مرجع"/><div className="outbound-scan-copy"><h2>منتظر اسکن بارکد هستیم...</h2><p>بارکد محصول را اسکن کنید</p><label><ScanBarcode size={23}/><input aria-label="بارکد محصول" placeholder="اسکن کنید یا بارکد را وارد نمایید" /></label><small>برای اسکن سریع‌تر از بارکدخوان استفاده کنید</small></div>
         </section>
 
         <section className="outbound-feedback">
@@ -72,7 +72,7 @@ export function OutboundPage() {
 
       <aside className="outbound-details" aria-label="جزئیات جلسه مرجوع کالا">
         <section className="outbound-latest"><h2><i/>آخرین محصول اسکن شده</h2><div><img src={referenceAssets.productRegistrationRing} alt="انگشتر طرح گل"/><article><b>انگشتر طرح گل</b><code dir="ltr">R-250904-00125</code><strong dir="ltr">4.385 g <small>وزن</small></strong><p><span>گروه</span><em>انگشتر</em></p></article></div></section>
-        <section className="outbound-reader"><h2><i/>وضعیت اتصال بارکدخوان</h2><div><span><ScannerArtwork compact/></span><article><b>متصل</b><p dir="ltr">COM3　|　9600</p><button type="button">تست اتصال</button></article></div></section>
+        <section className="outbound-reader"><h2><i/>وضعیت اتصال بارکدخوان</h2><div><span><img className="outbound-reader-reference" src={referenceAssets.barcodeScannerReference} alt="بارکدخوان متصل"/></span><article><b>متصل</b><p dir="ltr">COM3　|　9600</p><button type="button">تست اتصال</button></article></div></section>
         <section className="outbound-session"><h2>خلاصه جلسه</h2>{[["تعداد کل","۱۲۸",Barcode,"tone-blue"],["وزن کل مرجوع","483.725 g",Scale,"tone-gold"],["تعداد خطا","۷",TriangleAlert,"tone-red"],["درصد موفقیت","۹۴.۸۲٪",CheckCircle2,"tone-green"]].map(([name,value,Icon,tone]) => { const MetricIcon = Icon as typeof Barcode; return <p key={name as string}><MetricIcon size={16} className={tone as string}/><span>{name as string}</span><b dir="ltr">{value as string}</b></p>; })}</section>
       </aside>
     </section>

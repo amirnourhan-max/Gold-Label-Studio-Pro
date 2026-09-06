@@ -14,6 +14,7 @@ describe("approved returns workspace", () => {
     expect(screen.getByText("اسکن و ثبت مرجوع محصولات به انبار")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "اسکن بارکد مرجوع کالا" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "منتظر اسکن بارکد هستیم..." })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "بارکدخوان مرجع" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("اسکن کنید یا بارکد را وارد نمایید")).toBeInTheDocument();
     const metrics = screen.getByRole("list", { name: "آمار جلسه مرجوع کالا" });
     expect(metrics).toHaveTextContent("۱۲۸");

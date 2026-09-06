@@ -14,6 +14,7 @@ import designerTemplateNecklace from "./designer-template-necklace.webp";
 import designerTemplateService from "./designer-template-service.webp";
 import designerTemplatePlaque from "./designer-template-plaque.webp";
 import designerTemplateEarrings from "./designer-template-earrings.webp";
+import barcodeScannerReference from "./barcode-scanner-reference.png";
 
 import categoryRing from "./category-ring.webp";
 import categoryBracelet from "./category-bracelet.webp";
@@ -34,6 +35,7 @@ export const referenceAssets = {
   designerLabel,
   packageLabel,
   designerFullLabel,
+  barcodeScannerReference,
 } as const;
 
 export const designerTemplates = [designerTemplateRing, designerTemplateBracelet, designerTemplateNecklace, designerTemplateService, designerTemplatePlaque, designerTemplateEarrings] as const;
