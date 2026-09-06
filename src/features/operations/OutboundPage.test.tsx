@@ -43,6 +43,7 @@ describe("approved returns workspace", () => {
     const details = screen.getByRole("complementary", { name: "جزئیات جلسه مرجوع کالا" });
     expect(within(details).getByRole("img", { name: "انگشتر طرح گل" })).toBeInTheDocument();
     expect(within(details).getByRole("heading", { name: "وضعیت اتصال بارکدخوان" })).toBeInTheDocument();
+    expect(within(details).getByRole("img", { name: "بارکدخوان متصل" })).toBeInTheDocument();
     expect(within(details).getByRole("button", { name: "تست اتصال" })).toBeInTheDocument();
     expect(within(details).getByText("۹۴.۸۲٪")).toBeInTheDocument();
     const actions = screen.getByRole("toolbar", { name: "عملیات مرجوع کالا" });

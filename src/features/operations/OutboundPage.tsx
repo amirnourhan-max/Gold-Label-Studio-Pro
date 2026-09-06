@@ -24,10 +24,11 @@ const metrics = [
   { label: "زمان جلسه", value: "۰۰:۲۴:۱۸", trend: "", Icon: Clock3, tone: "tone-green" },
 ] as const;
 
-function ScannerArtwork() {
-  return <svg className="outbound-scanner-art" viewBox="0 0 150 120" aria-hidden="true">
-    <defs><radialGradient id="scanner-light"><stop offset="0" stopColor="#e8b44b" stopOpacity=".58"/><stop offset="1" stopColor="#e8b44b" stopOpacity="0"/></radialGradient></defs>
-    <path className="scanner-beam" d="M55 35 L145 4 L145 90 Z" fill="url(#scanner-light)"/>
+function ScannerArtwork({ compact = false }: { compact?: boolean }) {
+  const gradientId = compact ? "reader-light" : "scanner-light";
+  return <svg className={compact ? "outbound-reader-art" : "outbound-scanner-art"} viewBox="0 0 150 120" role={compact ? "img" : undefined} aria-label={compact ? "بارکدخوان متصل" : undefined} aria-hidden={compact ? undefined : "true"}>
+    <defs><radialGradient id={gradientId}><stop offset="0" stopColor="#e8b44b" stopOpacity=".58"/><stop offset="1" stopColor="#e8b44b" stopOpacity="0"/></radialGradient></defs>
+    <path className="scanner-beam" d="M55 35 L145 4 L145 90 Z" fill={`url(#${gradientId})`}/>
     <g fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
       <path d="M25 28h49c13 0 22 8 22 20v9c0 7-6 13-13 13H58L48 108H29l9-44c-10-4-16-12-16-23 0-5 1-9 3-13Z"/>
       <path d="M34 28v14h34"/><rect x="67" y="36" width="21" height="22" rx="6"/><path d="m44 70 18 7"/>
@@ -71,7 +72,7 @@ export function OutboundPage() {
 
       <aside className="outbound-details" aria-label="جزئیات جلسه مرجوع کالا">
         <section className="outbound-latest"><h2><i/>آخرین محصول اسکن شده</h2><div><img src={referenceAssets.productRegistrationRing} alt="انگشتر طرح گل"/><article><b>انگشتر طرح گل</b><code dir="ltr">R-250904-00125</code><strong dir="ltr">4.385 g <small>وزن</small></strong><p><span>گروه</span><em>انگشتر</em></p></article></div></section>
-        <section className="outbound-reader"><h2><i/>وضعیت اتصال بارکدخوان</h2><div><span><ScanBarcode size={40}/></span><article><b>متصل</b><p dir="ltr">COM3　|　9600</p><button type="button">تست اتصال</button></article></div></section>
+        <section className="outbound-reader"><h2><i/>وضعیت اتصال بارکدخوان</h2><div><span><ScannerArtwork compact/></span><article><b>متصل</b><p dir="ltr">COM3　|　9600</p><button type="button">تست اتصال</button></article></div></section>
         <section className="outbound-session"><h2>خلاصه جلسه</h2>{[["تعداد کل","۱۲۸",Barcode,"tone-blue"],["وزن کل مرجوع","483.725 g",Scale,"tone-gold"],["تعداد خطا","۷",TriangleAlert,"tone-red"],["درصد موفقیت","۹۴.۸۲٪",CheckCircle2,"tone-green"]].map(([name,value,Icon,tone]) => { const MetricIcon = Icon as typeof Barcode; return <p key={name as string}><MetricIcon size={16} className={tone as string}/><span>{name as string}</span><b dir="ltr">{value as string}</b></p>; })}</section>
       </aside>
     </section>
