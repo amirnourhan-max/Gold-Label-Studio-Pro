@@ -1,6 +1,6 @@
 .returns-workspace {
   height: 100%; min-height: 0; overflow: hidden; padding: 2px 0 7px; direction: rtl;
-  display: grid; grid-template-rows: 56px 86px minmax(0, 1fr); gap: 9px;
+  display: grid; grid-template-rows: 66px 101px minmax(0, 1fr); gap: 0;
   color: #dce5eb; background: radial-gradient(circle at 48% 27%, #10212d 0, #071520 50%, #04111b 100%); font-size: 11px;
 }
 .returns-workspace button, .returns-workspace input { font-family: inherit; }
@@ -18,7 +18,7 @@
 .returns-metric strong { margin-top: 4px; color: #dfe5e9; font-family: var(--font-latin); font-size: 22px; line-height: 1; font-weight: 500; }.returns-metric em { margin-top: 3px; color: #36d778; font-family: var(--font-latin); font-size: 10px; font-style: normal; }
 .returns-metric.tone-blue .returns-metric-icon { color: #348ffc; background: #112e51; }.returns-metric.tone-gold .returns-metric-icon { color: #e6b34b; background: #3a3221; }.returns-metric.tone-red .returns-metric-icon { color: #fb5e5e; background: #422429; }.returns-metric.tone-green .returns-metric-icon { color: #3bd275; background: #143727; }
 
-.returns-content { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 11px; margin: 21px 0 14px; direction: ltr; }
+.returns-content { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 11px; margin: 14px 0; direction: ltr; }
 .returns-primary { min-height: 0; display: grid; grid-template-rows: 198px 92px minmax(0, 1fr) 73px; gap: 10px; direction: rtl; }
 .returns-scan-panel { position: relative; overflow: hidden; display: grid; grid-template-columns: 190px minmax(0, 1fr) 125px; align-items: center; direction: ltr; border: 1px solid #c49335; border-radius: 10px; background: radial-gradient(circle at 15% 55%, #6d512633, transparent 25%), linear-gradient(115deg, #171b1f, #0b151d); box-shadow: inset 0 0 28px #d3a3420c; }
 .returns-scanner-reference { width: min(157px, 100%); height: auto; aspect-ratio: 1; object-fit: contain; justify-self: center; image-rendering: auto; filter: drop-shadow(0 0 8px #b47d28); }.returns-scan-copy { grid-column: 2; text-align: center; }
