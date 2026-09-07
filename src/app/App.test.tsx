@@ -66,4 +66,20 @@ describe("Gold Label Studio Pro shell", () => {
     ).toHaveAttribute("aria-current", "page");
     window.history.replaceState({}, "", "/");
   });
+
+  it("opens the dedicated products workspace with filters and a preview-only inventory table", () => {
+    window.history.replaceState({}, "", "/?page=products");
+    render(<App />);
+
+    expect(screen.getByTestId("products-page")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "محصولات" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "افزودن محصول جدید" })).toBeInTheDocument();
+    expect(screen.getByText("کل محصولات")).toBeInTheDocument();
+    expect(screen.getByText("وزن کل موجودی")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "جستجوی محصولات" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "فیلتر محصولات" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "فهرست محصولات" })).toBeInTheDocument();
+    expect(screen.getByText("صرفاً نمایشی")).toBeInTheDocument();
+    window.history.replaceState({}, "", "/");
+  });
 });

@@ -80,7 +80,12 @@ jobs:
               @{ Name = "settings-1440x900"; Page = "settings"; Size = "1440,900" },
               @{ Name = "settings-1536x864"; Page = "settings"; Size = "1536,864" },
               @{ Name = "settings-1600x900"; Page = "settings"; Size = "1600,900" },
-              @{ Name = "settings-1920x1080"; Page = "settings"; Size = "1920,1080" }
+              @{ Name = "settings-1920x1080"; Page = "settings"; Size = "1920,1080" },
+              @{ Name = "products-1366x768"; Page = "products"; Size = "1366,768" },
+              @{ Name = "products-1440x900"; Page = "products"; Size = "1440,900" },
+              @{ Name = "products-1536x864"; Page = "products"; Size = "1536,864" },
+              @{ Name = "products-1600x900"; Page = "products"; Size = "1600,900" },
+              @{ Name = "products-1920x1080"; Page = "products"; Size = "1920,1080" }
             )
             foreach ($check in $checks) {
               $output = "$pwd\visual-checks\$($check.Name).png"
