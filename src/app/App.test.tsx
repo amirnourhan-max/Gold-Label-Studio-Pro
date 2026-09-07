@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { App } from "./App";
 
@@ -53,6 +53,17 @@ describe("Gold Label Studio Pro shell", () => {
 
     expect(screen.getByTestId("returns-page")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "مرجوع کالا ‹" })).toHaveAttribute("aria-current", "page");
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("opens the settings workspace from the settings route", () => {
+    window.history.replaceState({}, "", "/?page=settings");
+    render(<App />);
+
+    expect(screen.getByTestId("settings-page")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("navigation", { name: "منوی اصلی" })).getByRole("button", { name: "تنظیمات" }),
+    ).toHaveAttribute("aria-current", "page");
     window.history.replaceState({}, "", "/");
   });
 });
