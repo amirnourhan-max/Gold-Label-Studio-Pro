@@ -69,7 +69,13 @@ jobs:
               @{ Name = "returns-1448x1086"; Page = "returns"; Size = "1448,1086" },
               @{ Name = "returns-1536x864"; Page = "returns"; Size = "1536,864" },
               @{ Name = "returns-1600x900"; Page = "returns"; Size = "1600,900" },
-              @{ Name = "returns-1920x1080"; Page = "returns"; Size = "1920,1080" }
+              @{ Name = "returns-1920x1080"; Page = "returns"; Size = "1920,1080" },
+              @{ Name = "packaging-1366x768"; Page = "packaging"; Size = "1366,768" },
+              @{ Name = "packaging-1440x900"; Page = "packaging"; Size = "1440,900" },
+              @{ Name = "packaging-1448x1086"; Page = "packaging"; Size = "1448,1086" },
+              @{ Name = "packaging-1536x864"; Page = "packaging"; Size = "1536,864" },
+              @{ Name = "packaging-1600x900"; Page = "packaging"; Size = "1600,900" },
+              @{ Name = "packaging-1920x1080"; Page = "packaging"; Size = "1920,1080" }
             )
             foreach ($check in $checks) {
               $output = "$pwd\visual-checks\$($check.Name).png"

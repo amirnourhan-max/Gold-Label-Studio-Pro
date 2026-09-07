@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import dashboardCss from "./dashboard.css?raw";
 import responsiveCss from "./responsive.css?raw";
+import packagingCss from "../features/operations/packaging-page.css?raw";
 import returnsCss from "../features/operations/returns-page.css?raw";
 
 describe("responsive layout contract", () => {
@@ -23,5 +24,12 @@ describe("responsive layout contract", () => {
     expect(dashboardCss).toContain("@media(max-height:850px)");
     expect(returnsCss).toContain("@media (max-height: 850px)");
     expect(returnsCss).toContain(".returns-details");
+  });
+
+  it("keeps packaging actions visible while its item list owns overflow in short windows", () => {
+    expect(packagingCss).toContain(".packaging-items-scroll");
+    expect(packagingCss).toContain("overflow: auto");
+    expect(packagingCss).toContain("@media (max-height: 850px)");
+    expect(packagingCss).toContain(".packaging-actions");
   });
 });
