@@ -38,6 +38,14 @@ describe("approved returns workspace", () => {
     expect(screen.getByText("۵۰")).toBeInTheDocument();
   });
 
+  it("keeps the scan history in its own keyboard-accessible scroll region", () => {
+    render(<OperationsPreviewPage mode="returns" />);
+
+    const historyScroll = screen.getByRole("region", { name: "فهرست آخرین اسکن‌ها" });
+    expect(historyScroll).toHaveAttribute("tabindex", "0");
+    expect(within(historyScroll).getByRole("table", { name: "آخرین اسکن‌های مرجوع کالا" })).toBeInTheDocument();
+  });
+
   it("keeps the latest product, session summary, and four footer actions visible", () => {
     render(<OperationsPreviewPage mode="returns" />);
 

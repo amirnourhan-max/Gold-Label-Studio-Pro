@@ -57,26 +57,28 @@ export function LabelDesignerPage() {
 
         <aside className="label-properties" role="region" aria-label="خواص عنصر">
           <header><b>خواص</b><button type="button" aria-label="بستن خواص">×</button></header>
-          <nav aria-label="زبانه‌های خواص"><button>عمومی</button><button>متن</button><button className="active">کد QR</button><button>پیشرفته</button></nav>
-          <label><span>نوع داده</span><select defaultValue="variable"><option value="variable">داده متغیر</option></select></label>
-          <label><span>متغیر متصل</span><span className="label-property-input"><input dir="ltr" value="{Product.QRCode}" readOnly /><button>…</button></span></label>
-          <section>
-            <h3>موقعیت و اندازه <ChevronDown size={14} /></h3>
-            <div className="label-property-grid"><label>X<input dir="ltr" value="54.10 mm" readOnly /></label><label>Y<input dir="ltr" value="12.30 mm" readOnly /></label><label>W<input dir="ltr" value="22.00 mm" readOnly /></label><label>H<input dir="ltr" value="22.00 mm" readOnly /></label></div>
-            <label className="label-rotation"><span>چرخش</span><select defaultValue="0"><option value="0">0°</option></select></label>
-          </section>
-          <section>
-            <h3>تنظیمات کد QR <ChevronDown size={14} /></h3>
-            <label><span>سطح تصحیح خطا</span><select defaultValue="m"><option value="m">M (15%)</option></select></label>
-            <label><span>حاشیه داخلی (Padding)</span><input dir="ltr" value="2.0 mm" readOnly /></label>
-            <p><span>نمایش چارچوب</span><Switch /></p>
-          </section>
-          <section>
-            <h3>ظاهر <ChevronDown size={14} /></h3>
-            <label><span>رنگ پیش‌زمینه</span><input dir="ltr" value="#000000" readOnly /></label>
-            <label><span>رنگ پس‌زمینه</span><input dir="ltr" value="#FFFFFF" readOnly /></label>
-            <div className="label-property-grid"><label>ضخامت خط<input dir="ltr" value="0.2 mm" readOnly /></label><label>شعاع گوشه‌ها<input dir="ltr" value="1.5 mm" readOnly /></label></div>
-          </section>
+          <div className="label-properties-scroll" role="region" aria-label="تنظیمات خواص" tabIndex={0}>
+            <nav aria-label="زبانه‌های خواص"><button>عمومی</button><button>متن</button><button className="active">کد QR</button><button>پیشرفته</button></nav>
+            <label><span>نوع داده</span><select defaultValue="variable"><option value="variable">داده متغیر</option></select></label>
+            <label><span>متغیر متصل</span><span className="label-property-input"><input dir="ltr" value="{Product.QRCode}" readOnly /><button>…</button></span></label>
+            <section>
+              <h3>موقعیت و اندازه <ChevronDown size={14} /></h3>
+              <div className="label-property-grid"><label>X<input dir="ltr" value="54.10 mm" readOnly /></label><label>Y<input dir="ltr" value="12.30 mm" readOnly /></label><label>W<input dir="ltr" value="22.00 mm" readOnly /></label><label>H<input dir="ltr" value="22.00 mm" readOnly /></label></div>
+              <label className="label-rotation"><span>چرخش</span><select defaultValue="0"><option value="0">0°</option></select></label>
+            </section>
+            <section>
+              <h3>تنظیمات کد QR <ChevronDown size={14} /></h3>
+              <label><span>سطح تصحیح خطا</span><select defaultValue="m"><option value="m">M (15%)</option></select></label>
+              <label><span>حاشیه داخلی (Padding)</span><input dir="ltr" value="2.0 mm" readOnly /></label>
+              <p><span>نمایش چارچوب</span><Switch /></p>
+            </section>
+            <section>
+              <h3>ظاهر <ChevronDown size={14} /></h3>
+              <label><span>رنگ پیش‌زمینه</span><input dir="ltr" value="#000000" readOnly /></label>
+              <label><span>رنگ پس‌زمینه</span><input dir="ltr" value="#FFFFFF" readOnly /></label>
+              <div className="label-property-grid"><label>ضخامت خط<input dir="ltr" value="0.2 mm" readOnly /></label><label>شعاع گوشه‌ها<input dir="ltr" value="1.5 mm" readOnly /></label></div>
+            </section>
+          </div>
           <button type="button" className="label-delete-element"><Trash2 size={15} />حذف عنصر</button>
         </aside>
 

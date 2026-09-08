@@ -49,10 +49,12 @@
 .label-guide { position: absolute; z-index: 1; pointer-events: none; border-color: #34c8d2; border-style: dashed; opacity: .85; }
 .label-guide-v { top: 0; bottom: 0; left: 66%; border-left-width: 1px; }
 .label-guide-h { left: 0; right: 0; top: 32%; border-top-width: 1px; }
-.label-properties { grid-column: 3; grid-row: 1 / 3; direction: rtl; padding: 0 9px 10px; display: flex; flex-direction: column; gap: 7px; }
+.label-properties { grid-column: 3; grid-row: 1 / 3; min-height: 0; direction: rtl; padding: 0 9px 10px; display: grid; grid-template-rows: 41px minmax(0, 1fr) 34px; gap: 7px; }
 .label-properties > header { direction: ltr; margin: 0 -9px; }
 .label-properties > header button { border: 0; background: transparent; color: #a7b4be; font-size: 20px; }
-.label-properties nav { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid #304655; border-radius: 6px; overflow: hidden; }
+.label-properties-scroll { min-height: 0; padding: 0 3px 2px 1px; display: flex; flex-direction: column; gap: 7px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #35516a transparent; }
+.label-properties-scroll:focus-visible { outline: 1px solid #b88a35; outline-offset: -2px; border-radius: 4px; }
+.label-properties nav { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid #304655; border-radius: 6px; overflow: hidden; }
 .label-properties nav button { height: 37px; border: 0; border-left: 1px solid #304655; background: #122330; color: #9eabb5; }
 .label-properties nav button.active { color: #f0be53; box-shadow: inset 0 0 0 1px #b48834; background: #273029; }
 .label-properties label { display: grid; gap: 5px; color: #aebac3; }
@@ -66,7 +68,7 @@
 .label-property-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; direction: ltr; }
 .label-property-grid label { grid-template-columns: 15px 1fr; align-items: center; }
 .label-rotation { grid-template-columns: 55px 90px !important; align-items: center; }
-.label-delete-element { margin-top: auto; min-height: 34px; display: flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid #99702d; border-radius: 6px; background: #231d1c; color: #ef8f6b; }
+.label-delete-element { min-height: 34px; display: flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid #99702d; border-radius: 6px; background: #231d1c; color: #ef8f6b; }
 .label-templates { grid-column: 1 / 3; grid-row: 2; padding: 7px; direction: rtl; }
 .label-templates header { direction: ltr; height: 31px; display: flex; align-items: center; justify-content: space-between; }
 .label-templates h2 { margin: 0; font-size: 13px; }
@@ -95,5 +97,6 @@
   .label-templates > div { height: 95px; }
   .label-template-image { height: 61px; }
   .label-properties { gap: 4px; }
+  .label-properties-scroll { gap: 4px; }
   .label-properties section { padding: 5px 7px; gap: 4px; }
 }

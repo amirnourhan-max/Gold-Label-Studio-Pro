@@ -44,4 +44,17 @@ describe("approved label designer", () => {
       "قالب انگشتر", "قالب دستبند", "قالب گردنبند", "قالب سرویس", "قالب پلاک", "قالب گوشواره",
     ]);
   });
+
+  it("keeps all property controls in a keyboard-accessible internal scroll region", () => {
+    render(<LabelDesignerPage />);
+
+    const properties = screen.getByRole("region", { name: "خواص عنصر" });
+    const propertyScroll = within(properties).getByRole("region", { name: "تنظیمات خواص" });
+    expect(propertyScroll).toHaveAttribute("tabindex", "0");
+    expect(within(propertyScroll).getByText("موقعیت و اندازه")).toBeInTheDocument();
+    expect(within(propertyScroll).getByText("تنظیمات کد QR")).toBeInTheDocument();
+    expect(within(propertyScroll).getByText("ظاهر")).toBeInTheDocument();
+    expect(within(propertyScroll).queryByRole("button", { name: "حذف عنصر" })).not.toBeInTheDocument();
+    expect(within(properties).getByRole("button", { name: "حذف عنصر" })).toBeInTheDocument();
+  });
 });
