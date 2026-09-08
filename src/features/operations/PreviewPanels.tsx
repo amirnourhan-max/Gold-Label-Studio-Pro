@@ -1,4 +1,4 @@
-import { Play, Square, Trash2, FileText } from "lucide-react";
+import { CheckCircle2, Play, Square, Trash2 } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
 
 export function PackageLabelPreview() {
@@ -18,6 +18,6 @@ export function ReturnsActions() {
     <button type="button" className="green" disabled><Play/>شروع</button>
     <button type="button" className="danger" disabled><Square/>توقف</button>
     <button type="button" disabled><Trash2/>حذف آخرین</button>
-    <button type="button" className="gold" disabled><FileText/>پایان و گزارش</button>
+    <button type="button" className="gold" disabled><CheckCircle2/>پایان جلسه</button>
   </div>;
 }

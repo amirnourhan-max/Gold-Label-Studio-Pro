@@ -3,6 +3,7 @@ import dashboardCss from "./dashboard.css?raw";
 import responsiveCss from "./responsive.css?raw";
 import packagingCss from "../features/operations/packaging-page.css?raw";
 import returnsCss from "../features/operations/returns-page.css?raw";
+import labelPrintCss from "../features/operations/label-print-page.css?raw";
 
 describe("responsive layout contract", () => {
   it("defines shared compact and narrow viewport rules for every application surface", () => {
@@ -14,10 +15,18 @@ describe("responsive layout contract", () => {
       ".label-designer-page",
       ".packaging-workspace",
       ".returns-workspace",
+      ".label-print-page",
       ".ops-page",
     ]) {
       expect(responsiveCss).toContain(selector);
     }
+  });
+
+  it("stacks print controls and keeps the print queue internally scrollable on narrow windows", () => {
+    expect(labelPrintCss).toContain(".label-queue-scroll");
+    expect(labelPrintCss).toContain("overflow: auto");
+    expect(labelPrintCss).toContain("@media (max-width: 1180px)");
+    expect(labelPrintCss).toContain("@media (max-width: 720px)");
   });
 
   it("keeps Dashboard and return-session details reachable in compact-height desktop windows", () => {

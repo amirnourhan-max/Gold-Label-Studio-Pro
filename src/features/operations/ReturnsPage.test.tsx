@@ -49,7 +49,7 @@ describe("approved returns workspace", () => {
     expect(within(details).getByText("۹۴.۸۲٪")).toBeInTheDocument();
     const actions = screen.getByRole("toolbar", { name: "عملیات مرجوع کالا" });
     expect(within(actions).getAllByRole("button").map(button => button.textContent?.trim())).toEqual([
-      "شروع", "توقف", "بازگشت آخرین", "پایان و گزارش",
+      "شروع", "توقف", "بازگشت آخرین", "پایان جلسه",
     ]);
   });
 });

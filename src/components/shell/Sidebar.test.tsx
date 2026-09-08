@@ -35,4 +35,10 @@ describe("approved sidebar artwork", () => {
 
     expect(screen.getByRole("status", { name: "صفحه فعال" })).toHaveTextContent("product-registration");
   });
+
+  it("does not expose the removed reports destination", () => {
+    render(<Sidebar />);
+
+    expect(screen.queryByRole("button", { name: "گزارش‌ها" })).not.toBeInTheDocument();
+  });
 });

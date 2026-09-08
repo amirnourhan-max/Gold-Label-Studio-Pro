@@ -1,6 +1,6 @@
 import {
   ArrowLeft, Barcode, Check, CheckCircle2, ChevronLeft, ChevronRight,
-  CircleHelp, Clock3, FileText, Play, RotateCcw, Scale, ScanBarcode,
+  CircleHelp, Clock3, Play, RotateCcw, Scale, ScanBarcode,
   Square, TriangleAlert, Undo2, X, XCircle,
 } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
@@ -54,7 +54,7 @@ export function ReturnsPage() {
         })}</tbody></table></div><footer><label><i>نمایش</i><span><b>۵۰</b>⌄</span><i>مورد</i></label><nav aria-label="صفحه‌بندی اسکن‌ها"><button aria-label="صفحه بعد"><ChevronRight size={15}/></button><button>۱</button><button>۲</button><button>۳</button><button aria-label="صفحه قبل"><ChevronLeft size={15}/></button></nav></footer></section>
 
         <div className="returns-actions" role="toolbar" aria-label="عملیات مرجوع کالا">
-          <button type="button" className="start"><Play size={21} fill="currentColor"/>شروع</button><button type="button" className="stop"><Square size={20} fill="currentColor"/>توقف</button><button type="button" className="remove"><Undo2 size={21}/>بازگشت آخرین</button><button type="button" className="report"><FileText size={21}/>پایان و گزارش</button>
+          <button type="button" className="start"><Play size={21} fill="currentColor"/>شروع</button><button type="button" className="stop"><Square size={20} fill="currentColor"/>توقف</button><button type="button" className="remove"><Undo2 size={21}/>بازگشت آخرین</button><button type="button" className="finish"><CheckCircle2 size={21}/>پایان جلسه</button>
         </div>
       </div>
 

@@ -82,4 +82,14 @@ describe("Gold Label Studio Pro shell", () => {
     expect(screen.getByText("صرفاً نمایشی")).toBeInTheDocument();
     window.history.replaceState({}, "", "/");
   });
+
+  it("rejects the removed reports route and falls back to the dashboard", () => {
+    window.history.replaceState({}, "", "/?page=reports");
+    render(<App />);
+
+    expect(screen.getByTestId("dashboard")).toBeInTheDocument();
+    expect(screen.queryByText("گزارش‌ها")).not.toBeInTheDocument();
+    expect(screen.queryByText("گزارش‌گیری")).not.toBeInTheDocument();
+    window.history.replaceState({}, "", "/");
+  });
 });

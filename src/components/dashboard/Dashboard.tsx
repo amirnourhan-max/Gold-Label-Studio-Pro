@@ -1,5 +1,5 @@
 import {
-  BarChart3, ChevronDown, CirclePlus, Crown, Gift, Package,
+  ChevronDown, CirclePlus, Crown, Gift, Package,
   Palette, Printer, RotateCcw, ScanLine, Scale, Settings,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -103,7 +103,7 @@ function RecentActivity() {
 
 const quick = [
   ["محصول جدید", CirclePlus], ["چاپ لیبل", Printer], ["مرجوع کالا", RotateCcw], ["طراحی لیبل", Palette],
-  ["گزارش‌گیری", BarChart3], ["تنظیمات", Settings],
+  ["تنظیمات", Settings],
 ] as const;
 
 function QuickActions({ onNewProduct }: { onNewProduct?: () => void }) {
