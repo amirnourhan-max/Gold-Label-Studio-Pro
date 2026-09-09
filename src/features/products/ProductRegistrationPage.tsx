@@ -1,24 +1,10 @@
 import { ArrowUp, Check, ChevronDown, ChevronRight, ChevronsDown, Crosshair, Database, Home, ImagePlus, Plus, Printer, PrinterCheck, Save, ScanBarcode, Scale, Trash2, Undo2, X } from "lucide-react";
 import { ChangeEvent, useRef, useState } from "react";
 import { categoryAssets, referenceAssets } from "../../assets/reference";
+import { displayData } from "../../services";
 import "./product-registration.css";
 
-const initialCategories = [
-  { name: "انگشتر", image: categoryAssets[0], children: ["انگشتر مردانه", "انگشتر زنانه", "انگشتر نگین دار"] },
-  { name: "دستبند", image: categoryAssets[1], children: ["دستبند زنانه", "دستبند مردانه"] },
-  { name: "سرویس", image: categoryAssets[5], children: ["سرویس کامل", "نیم ست"] },
-  { name: "گردنبند", image: categoryAssets[2], children: ["گردنبند زنانه", "گردنبند مردانه"] },
-];
-
-const initialMakers = ["کارگاه طلای پارسیان", "کارگاه مرکزی"];
-
-const initialFields = {
-  name: "انگشتر طرح نگین خورشیدی", code: "R-250904-00125", weight: "4.385",
-  manualWeight: "4.385", purity: "750", size: "54", quantity: "1",
-  maker: "کارگاه طلای پارسیان", template: "default", note: "نگین اتمی درجه یک",
-};
-
-const previewNotice = "پیش‌نمایش رابط کاربری — هیچ اطلاعاتی ذخیره یا چاپ نمی‌شود.";
+const { initialCategories, initialFields, initialMakers, previewNotice } = displayData.getProductRegistration();
 
 export function ProductRegistrationPage() {
   const [categories, setCategories] = useState(initialCategories);

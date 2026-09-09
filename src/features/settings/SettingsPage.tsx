@@ -3,7 +3,10 @@ import {
   HardDriveDownload, KeyRound, Pencil, Plus, Printer, ScanLine, Scale,
   ShieldCheck, Trash2, UserPlus, UsersRound,
 } from "lucide-react";
+import { displayData } from "../../services";
 import "./settings-page.css";
+
+const displayUsers = displayData.listUsers();
 
 type DeviceCardProps = {
   title: string;
@@ -12,12 +15,6 @@ type DeviceCardProps = {
   fields: readonly [string, string][];
   action: string;
 };
-
-const users = [
-  ["ادمین", "مدیر سیستم", "admin", "فعال"],
-  ["مریم رضایی", "اپراتور", "m.rezaei", "فعال"],
-  ["امیر محمدی", "اپراتور", "a.mohammadi", "غیرفعال"],
-] as const;
 
 function DeviceCard({ title, subtitle, icon: Icon, fields, action }: DeviceCardProps) {
   return <section className="settings-device-card" role="region" aria-label={title}>
@@ -64,7 +61,7 @@ export function SettingsPage() {
       <div className="settings-users-scroll">
         <table aria-label="فهرست کاربران">
           <thead><tr><th>نام کاربر</th><th>نقش</th><th>نام کاربری</th><th>وضعیت</th><th>عملیات</th></tr></thead>
-          <tbody>{users.map(([name, role, username, status]) => <tr key={username}><td><span className="settings-avatar">{name.slice(0, 1)}</span>{name}</td><td><span className={role === "مدیر سیستم" ? "settings-role manager" : "settings-role"}>{role}</span></td><td dir="ltr">{username}</td><td><span className={status === "فعال" ? "settings-active" : "settings-disabled"}><i />{status}</span></td><td><div className="settings-user-actions"><button type="button" aria-label={`ویرایش ${name}`}><Pencil size={16} /></button><button type="button" aria-label={`تعویض رمز ${name}`}><KeyRound size={16} /></button><button type="button" aria-label={`حذف ${name}`}><Trash2 size={16} /></button></div></td></tr>)}</tbody>
+          <tbody>{displayUsers.map(([name, role, username, status]) => <tr key={username}><td><span className="settings-avatar">{name.slice(0, 1)}</span>{name}</td><td><span className={role === "مدیر سیستم" ? "settings-role manager" : "settings-role"}>{role}</span></td><td dir="ltr">{username}</td><td><span className={status === "فعال" ? "settings-active" : "settings-disabled"}><i />{status}</span></td><td><div className="settings-user-actions"><button type="button" aria-label={`ویرایش ${name}`}><Pencil size={16} /></button><button type="button" aria-label={`تعویض رمز ${name}`}><KeyRound size={16} /></button><button type="button" aria-label={`حذف ${name}`}><Trash2 size={16} /></button></div></td></tr>)}</tbody>
         </table>
       </div>
       <footer><span>۳ کاربر ثبت‌شده</span><span>تغییرات این بخش ذخیره نمی‌شوند</span><button type="button"><Plus size={16} />دعوت از کاربر</button></footer>

@@ -4,18 +4,11 @@ import {
   Square, TriangleAlert, Undo2, X, XCircle,
 } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
+import { PageContainer, ScrollPanel } from "../../components/common";
+import { displayData } from "../../services";
 import "./returns-page.css";
 
-const scans = [
-  ["۱", "10:24:31", "R-250904-00125", "انگشتر طرح گل", "انگشتر", "4.385 g", "موفق"],
-  ["۲", "10:23:47", "R-250904-00124", "دستبند کارتیه", "دستبند", "8.340 g", "موفق"],
-  ["۳", "10:22:18", "R-250904-00125", "انگشتر طرح گل", "انگشتر", "4.385 g", "بارکد تکراری"],
-  ["۴", "10:21:05", "R-250904-00123", "گردنبند قلب", "گردنبند", "3.215 g", "موفق"],
-  ["۵", "10:20:01", "R-250904-00122", "دستبند النگویی", "دستبند", "5.670 g", "موفق"],
-  ["۶", "10:19:33", "R-250904-00124", "دستبند کارتیه", "دستبند", "8.340 g", "بارکد تکراری"],
-  ["۷", "10:18:55", "R-250904-00121", "آویز پروانه", "آویز", "2.950 g", "موفق"],
-  ["۸", "10:18:12", "R-250904-00120", "زنجیر طنابی", "زنجیر", "7.120 g", "موفق"],
-] as const;
+const returnScans = displayData.listReturnScans();
 
 const metrics = [
   { label: "تعداد اسکن شده", value: "۱۲۸", trend: "↑ ۱۲٪", Icon: Barcode, tone: "tone-blue" },
@@ -25,7 +18,7 @@ const metrics = [
 ] as const;
 
 export function ReturnsPage() {
-  return <main className="returns-workspace" data-testid="returns-page">
+  return <PageContainer className="returns-workspace" data-testid="returns-page">
     <header className="returns-heading">
       <div className="returns-title"><span><RotateCcw size={22}/></span><div><h1>مرجوع کالا</h1><p>اسکن و ثبت مرجوع محصولات به انبار</p></div></div>
       <div className="returns-heading-actions"><button type="button" className="returns-help"><CircleHelp size={16}/>راهنما</button><button type="button" className="returns-back"><ArrowLeft size={17}/>بازگشت</button></div>
@@ -49,10 +42,10 @@ export function ReturnsPage() {
             <article className="returns-success" role="status" aria-label="اسکن موفق"><span><Check size={28}/></span><div><b>اسکن موفق</b><p>ثبت مرجوع با موفقیت انجام شد</p><small dir="ltr">R-250904-00125　|　4.385 g</small></div><img src={referenceAssets.productRegistrationRing} alt="تصویر محصول اسکن‌شده" /></article>
           </section>
 
-          <section className="returns-history"><h2>آخرین اسکن‌ها</h2><div className="returns-history-scroll" role="region" aria-label="فهرست آخرین اسکن‌ها" tabIndex={0}><table aria-label="آخرین اسکن‌های مرجوع کالا"><thead><tr><th>ردیف</th><th>زمان</th><th>کد محصول</th><th>نام محصول</th><th>گروه</th><th>وزن</th><th>وضعیت</th></tr></thead><tbody>{scans.map(row => {
+          <section className="returns-history"><h2>آخرین اسکن‌ها</h2><ScrollPanel className="returns-history-scroll" role="region" aria-label="فهرست آخرین اسکن‌ها"><table aria-label="آخرین اسکن‌های مرجوع کالا"><thead><tr><th>ردیف</th><th>زمان</th><th>کد محصول</th><th>نام محصول</th><th>گروه</th><th>وزن</th><th>وضعیت</th></tr></thead><tbody>{returnScans.map(row => {
             const duplicate = row[6] === "بارکد تکراری";
             return <tr key={`${row[0]}-${row[2]}`} className={duplicate ? "duplicate" : undefined}>{row.slice(0, 6).map((cell, index) => <td key={index} dir={index === 1 || index === 2 || index === 5 ? "ltr" : undefined}>{cell}</td>)}<td><span className={duplicate ? "scan-state duplicate" : "scan-state ok"}>{duplicate ? <XCircle size={14}/> : <CheckCircle2 size={14}/>} {row[6]}</span></td></tr>;
-          })}</tbody></table></div><footer><label><i>نمایش</i><span><b>۵۰</b>⌄</span><i>مورد</i></label><nav aria-label="صفحه‌بندی اسکن‌ها"><button aria-label="صفحه بعد"><ChevronRight size={15}/></button><button>۱</button><button>۲</button><button>۳</button><button aria-label="صفحه قبل"><ChevronLeft size={15}/></button></nav></footer></section>
+          })}</tbody></table></ScrollPanel><footer><label><i>نمایش</i><span><b>۵۰</b>⌄</span><i>مورد</i></label><nav aria-label="صفحه‌بندی اسکن‌ها"><button aria-label="صفحه بعد"><ChevronRight size={15}/></button><button>۱</button><button>۲</button><button>۳</button><button aria-label="صفحه قبل"><ChevronLeft size={15}/></button></nav></footer></section>
         </section>
 
         <div className="returns-actions" role="toolbar" aria-label="عملیات مرجوع کالا">
@@ -66,5 +59,5 @@ export function ReturnsPage() {
         <section className="returns-session"><h2>خلاصه جلسه</h2>{[["تعداد کل","۱۲۸",Barcode,"tone-blue"],["وزن کل مرجوع","483.725 g",Scale,"tone-gold"],["تعداد خطا","۷",TriangleAlert,"tone-red"],["درصد موفقیت","۹۴.۸۲٪",CheckCircle2,"tone-green"]].map(([name,value,Icon,tone]) => { const MetricIcon = Icon as typeof Barcode; return <p key={name as string}><MetricIcon size={16} className={tone as string}/><span>{name as string}</span><b dir="ltr">{value as string}</b></p>; })}</section>
       </aside>
     </section>
-  </main>;
+  </PageContainer>;
 }

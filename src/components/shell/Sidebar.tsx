@@ -1,7 +1,8 @@
 import { Boxes, CirclePlus, Database, Home, Palette, Printer, RotateCcw, Settings, ShoppingBag, Scale } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
+import type { ShellRoute } from "../../types";
 
-export type ShellRoute = "dashboard" | "product-registration" | "label-print" | "label-designer" | "packaging" | "returns" | "products" | "settings";
+export type { ShellRoute } from "../../types";
 
 type NavigationItem = {
   label: string;

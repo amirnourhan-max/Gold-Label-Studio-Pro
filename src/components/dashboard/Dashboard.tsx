@@ -4,7 +4,12 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { categoryAssets, referenceAssets } from "../../assets/reference";
-import { dashboardFixture } from "./dashboard.fixture";
+import { PageContainer } from "../../components/common";
+import { dashboardReferenceAssets } from "../../data/mock";
+import { displayData } from "../../services";
+
+const dashboardFixture = displayData.getDashboard();
+const dashboardDeviceStatus = displayData.listDashboardDevices();
 
 const metricIcons: Record<string, ComponentType<{ size?: number }>> = {
   weight: Scale,
@@ -158,16 +163,10 @@ function PrintQueue() {
   );
 }
 
-const deviceStatus = [
-  ["ترازوی دیجیتال", "A&D GX-3002A", "0.000 g", "متصل", "scale"],
-  ["چاپگر لیبل", "Zebra ZD421", "آماده", "متصل", "printer"],
-  ["پایگاه داده", "SQL Server 2019", "3ms", "متصل", "database"],
-] as const;
-
 function DeviceStatusStrip() {
   return <section className="dashboard-devices" aria-label="وضعیت دستگاه‌ها">
-    {deviceStatus.map(([name, model, value, state, artwork]) => <article className="device-card" data-testid="device-card" key={name}>
-      <span className={`device-art ${artwork}`} aria-hidden="true" style={{ backgroundImage: `url(${referenceAssets.devices})` }}/>
+    {dashboardDeviceStatus.map(([name, model, value, state, artwork]) => <article className="device-card" data-testid="device-card" key={name}>
+      <span className={`device-art ${artwork}`} aria-hidden="true" style={{ backgroundImage: `url(${dashboardReferenceAssets.devices})` }}/>
       <div className="device-copy"><div><b>{name}</b><em><i/>{state}</em></div><small>{model}</small></div>
       <strong dir="ltr">{value}</strong>
     </article>)}
@@ -176,11 +175,11 @@ function DeviceStatusStrip() {
 
 export function Dashboard({ onNewProduct }: { onNewProduct?: () => void }) {
   return (
-    <main className="dashboard" data-testid="dashboard">
+    <PageContainer className="dashboard" data-testid="dashboard">
       <section className="dashboard-top">{dashboardFixture.metrics.map((item) => <MetricCard key={item.id} item={item}/>)}<HeroCard/></section>
       <section className="analytics-grid"><DailyActivityChart/><CategoryDonut/><RecentActivity/></section>
       <section className="operations-grid"><QuickActions onNewProduct={onNewProduct}/><CategoryGallery/><PrintQueue/></section>
       <DeviceStatusStrip/>
-    </main>
+    </PageContainer>
   );
 }

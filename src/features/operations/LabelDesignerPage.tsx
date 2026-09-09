@@ -4,7 +4,11 @@ import {
   Minus, MousePointer2, Printer, QrCode, Redo2, Save, Table2, Trash2, Type, Undo2,
 } from "lucide-react";
 import { designerTemplates, referenceAssets } from "../../assets/reference";
+import { ScrollPanel } from "../../components/common";
+import { displayData } from "../../services";
 import "./label-designer.css";
+
+const labelDesignerTemplates = displayData.listLabelDesignerTemplates();
 
 const toolbar = [
   ["جدید", FilePlus2], ["باز کردن", FolderOpen], ["ذخیره", Save], ["ذخیره نسخه", Copy],
@@ -16,8 +20,6 @@ const tools = [
   ["انتخاب", MousePointer2], ["متن", Type], ["کد QR", QrCode], ["تصویر", ImageIcon],
   ["خط", Minus], ["شکل", Circle], ["جدول", Table2], ["متغیر", Braces],
 ] as const;
-
-const templates = ["انگشتر", "دستبند", "گردنبند", "سرویس", "پلاک", "گوشواره"];
 
 function Switch({ enabled = true }: { enabled?: boolean }) {
   return <span className={`label-switch${enabled ? " enabled" : ""}`} aria-hidden="true"><i /></span>;
@@ -57,7 +59,7 @@ export function LabelDesignerPage() {
 
         <aside className="label-properties" role="region" aria-label="خواص عنصر">
           <header><b>خواص</b><button type="button" aria-label="بستن خواص">×</button></header>
-          <div className="label-properties-scroll" role="region" aria-label="تنظیمات خواص" tabIndex={0}>
+          <ScrollPanel className="label-properties-scroll" role="region" aria-label="تنظیمات خواص">
             <nav aria-label="زبانه‌های خواص"><button>عمومی</button><button>متن</button><button className="active">کد QR</button><button>پیشرفته</button></nav>
             <label><span>نوع داده</span><select defaultValue="variable"><option value="variable">داده متغیر</option></select></label>
             <label><span>متغیر متصل</span><span className="label-property-input"><input dir="ltr" value="{Product.QRCode}" readOnly /><button>…</button></span></label>
@@ -78,13 +80,13 @@ export function LabelDesignerPage() {
               <label><span>رنگ پس‌زمینه</span><input dir="ltr" value="#FFFFFF" readOnly /></label>
               <div className="label-property-grid"><label>ضخامت خط<input dir="ltr" value="0.2 mm" readOnly /></label><label>شعاع گوشه‌ها<input dir="ltr" value="1.5 mm" readOnly /></label></div>
             </section>
-          </div>
+          </ScrollPanel>
           <button type="button" className="label-delete-element"><Trash2 size={15} />حذف عنصر</button>
         </aside>
 
         <section className="label-templates" aria-label="قالب‌های ذخیره‌شده">
           <header><h2>قالب‌های ذخیره‌شده</h2><span><button>مدیریت قالب‌ها</button><button aria-label="نمایش شبکه‌ای"><Grid3X3 size={17} /></button><button aria-label="نمایش فهرستی"><List size={17} /></button><ChevronLeft size={20} /></span></header>
-          <div role="list" aria-label="قالب‌های ذخیره‌شده">{templates.map((name, index) => <article role="listitem" key={name} className={index === 0 ? "active" : ""}><span className="label-template-image"><img src={designerTemplates[index]} alt={`قالب ${name}`} /></span><span>{name}</span></article>)}</div>
+          <div role="list" aria-label="قالب‌های ذخیره‌شده">{labelDesignerTemplates.map((name, index) => <article role="listitem" key={name} className={index === 0 ? "active" : ""}><span className="label-template-image"><img src={designerTemplates[index]} alt={`قالب ${name}`} /></span><span>{name}</span></article>)}</div>
         </section>
       </div>
     </main>

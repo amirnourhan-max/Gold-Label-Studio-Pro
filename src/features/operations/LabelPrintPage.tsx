@@ -4,15 +4,11 @@ import {
   SlidersHorizontal, Sparkles, Tag, Weight,
 } from "lucide-react";
 import { designerTemplates, referenceAssets } from "../../assets/reference";
+import { displayData } from "../../services";
 import "./label-print-page.css";
 
-const templates = ["انگشتر", "دستبند", "گردنبند", "سرویس", "پلاک"] as const;
-
-const queued = [
-  ["R-250904-00130", "انگشتر طرح گل", "۲", "در حال چاپ", "active"],
-  ["N-250904-00131", "گردنبند طلایی", "۱", "در صف", "waiting"],
-  ["B-250904-00132", "دستبند کارتیه", "۳", "در صف", "waiting"],
-] as const;
+const labelPrintTemplates = displayData.listLabelPrintTemplates();
+const labelPrintQueue = displayData.listLabelPrintQueue();
 
 export function LabelPrintPage() {
   return (
@@ -48,7 +44,7 @@ export function LabelPrintPage() {
 
           <section className="label-templates-print" aria-label="قالب‌های ذخیره‌شده چاپ">
             <header><div><h2>قالب‌های ذخیره‌شده</h2><p>انتخاب سریع قالب برای محصول</p></div><button type="button">مدیریت قالب‌ها <ChevronLeft size={16} /></button></header>
-            <div className="label-template-list">{templates.map((template, index) => <button type="button" key={template} className={index === 0 ? "active" : ""}><img src={designerTemplates[index]} alt={`قالب ${template}`} /><span>{template}</span></button>)}</div>
+            <div className="label-template-list">{labelPrintTemplates.map((template, index) => <button type="button" key={template} className={index === 0 ? "active" : ""}><img src={designerTemplates[index]} alt={`قالب ${template}`} /><span>{template}</span></button>)}</div>
           </section>
         </div>
 
@@ -62,7 +58,7 @@ export function LabelPrintPage() {
 
       <section className="label-print-queue" aria-label="صف چاپ">
         <header><div><h2><Layers3 size={20} />صف چاپ</h2><span>۳ مورد</span></div><button type="button">پاک کردن صف</button></header>
-        <div className="label-queue-scroll"><table><thead><tr><th>ردیف</th><th>کد محصول</th><th>نام محصول</th><th>تعداد</th><th>قالب</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>{queued.map(([code, name, count, state, tone], index) => <tr key={code}><td>{index + 1}</td><td dir="ltr">{code}</td><td>{name}</td><td>{count}</td><td>QR — انگشتر</td><td><span className={`label-queue-state ${tone}`}>{state}</span></td><td><button type="button" aria-label={`حذف ${name}`}>×</button></td></tr>)}</tbody></table></div>
+        <div className="label-queue-scroll"><table><thead><tr><th>ردیف</th><th>کد محصول</th><th>نام محصول</th><th>تعداد</th><th>قالب</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>{labelPrintQueue.map(([code, name, count, state, tone], index) => <tr key={code}><td>{index + 1}</td><td dir="ltr">{code}</td><td>{name}</td><td>{count}</td><td>QR — انگشتر</td><td><span className={`label-queue-state ${tone}`}>{state}</span></td><td><button type="button" aria-label={`حذف ${name}`}>×</button></td></tr>)}</tbody></table></div>
         <footer><p><span><Printer size={17} />Zebra ZD421</span><b>Ready</b></p><button type="button" className="primary"><Printer size={18} />چاپ همه</button></footer>
       </section>
     </main>
