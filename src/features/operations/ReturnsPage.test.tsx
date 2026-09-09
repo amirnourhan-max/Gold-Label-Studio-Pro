@@ -46,6 +46,18 @@ describe("approved returns workspace", () => {
     expect(within(historyScroll).getByRole("table", { name: "آخرین اسکن‌های مرجوع کالا" })).toBeInTheDocument();
   });
 
+  it("keeps scan feedback and history in one ordered flow region", () => {
+    render(<OperationsPreviewPage mode="returns" />);
+
+    const results = screen.getByRole("region", { name: "نتایج اسکن مرجوع کالا" });
+    const duplicate = within(results).getByRole("alert", { name: "بارکد تکراری" });
+    const success = within(results).getByRole("status", { name: "اسکن موفق" });
+    const history = within(results).getByRole("table", { name: "آخرین اسکن‌های مرجوع کالا" });
+
+    expect(duplicate.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(success.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("keeps the latest product, session summary, and four footer actions visible", () => {
     render(<OperationsPreviewPage mode="returns" />);
 
