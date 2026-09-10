@@ -22,8 +22,8 @@ fn insert_catalog_and_product(connection: &Connection) {
         .expect("group should insert");
     connection
         .execute(
-            "INSERT INTO products (id, product_code, name, product_group_id, purity_per_mille, weight_mg)
-             VALUES ('product-1', 'R-001', 'Ring', 'group-1', 750, 4385)",
+            "INSERT INTO products (id, product_code, name, product_group_id, purity_per_mille, weight_mg, status)
+             VALUES ('product-1', 'R-001', 'Ring', 'group-1', 750, 4385, 'active')",
             [],
         )
         .expect("product should insert");
