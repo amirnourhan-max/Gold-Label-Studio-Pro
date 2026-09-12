@@ -89,8 +89,8 @@ export class PersistentProductCatalogService implements ProductCatalogService {
       this.dependencies.catalog.listActiveGroups(),
       this.dependencies.catalog.listActiveWorkshops(),
     ]);
-    if (groups.length === 0 && workshops.length === 0) {
-      await this.seedStarterCatalog();
+    if (groups.length === 0 || workshops.length === 0) {
+      await this.seedStarterCatalog(groups.length === 0, workshops.length === 0);
     }
     this.initialized = true;
   }
@@ -270,8 +270,8 @@ export class PersistentProductCatalogService implements ProductCatalogService {
     await this.dependencies.products.softDelete(id, this.now());
   }
 
-  private async seedStarterCatalog(): Promise<void> {
-    for (let groupIndex = 0; groupIndex < starterCatalogSeed.length; groupIndex += 1) {
+  private async seedStarterCatalog(seedGroups: boolean, seedWorkshops: boolean): Promise<void> {
+    if (seedGroups) for (let groupIndex = 0; groupIndex < starterCatalogSeed.length; groupIndex += 1) {
       const seed = starterCatalogSeed[groupIndex]!;
       const groupId = this.createId();
       await this.dependencies.catalog.createGroup({
@@ -290,7 +290,7 @@ export class PersistentProductCatalogService implements ProductCatalogService {
         });
       }
     }
-    for (const workshop of starterWorkshops) {
+    if (seedWorkshops) for (const workshop of starterWorkshops) {
       await this.dependencies.catalog.createWorkshop({
         id: this.createId() as CreateWorkshopInput["id"],
         name: workshop,

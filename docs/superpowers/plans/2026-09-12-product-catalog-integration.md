@@ -134,9 +134,9 @@
 - Produces a file-backed migration test that closes/reopens SQLite and verifies persisted catalog/product data.
 - Produces Windows CI for `product-catalog-integration`.
 
-- [ ] **Step 1: Write the Rust restart-persistence test and add the feature branch to workflow triggers**
-- [ ] **Step 2: Run complete local `npm run test:run`, `npm run build`, static SQL-boundary checks, and `git diff --check`**
-- [ ] **Step 3: Commit as `test: verify product catalog persistence` and publish the branch**
+- [x] **Step 1: Write the Rust restart-persistence test and add the feature branch to workflow triggers**
+- [x] **Step 2: Run complete local `npm run test:run`, `npm run build`, static SQL-boundary checks, and `git diff --check`**
+- [x] **Step 3: Commit as `test: verify product catalog persistence` and publish the branch**
 - [ ] **Step 4: Monitor GitHub Actions; inspect and fix every failing job until Rust tests, Tauri Windows build, smoke EXE, and visual checks pass**
 - [ ] **Step 5: Record final local/CI evidence without merging or modifying `main`**
 

@@ -1,4 +1,5 @@
 use rusqlite::{Connection, Error};
+use std::{fs, path::PathBuf, process, time::{SystemTime, UNIX_EPOCH}};
 
 use super::INITIAL_SCHEMA_SQL;
 
@@ -156,4 +157,61 @@ fn failed_schema_batch_rolls_back_its_partial_changes() {
     );
 
     assert!(matches!(table_error, Err(Error::QueryReturnedNoRows)));
+}
+
+fn unique_test_database_path() -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should be after epoch")
+        .as_nanos();
+    std::env::temp_dir().join(format!("gold-label-catalog-{}-{nanos}.db", process::id()))
+}
+
+#[test]
+fn product_catalog_survives_database_close_and_restart() {
+    let database_path = unique_test_database_path();
+
+    {
+        let connection = Connection::open(&database_path).expect("file-backed SQLite should open");
+        connection.pragma_update(None, "foreign_keys", "ON").expect("foreign keys should enable");
+        connection.execute_batch(INITIAL_SCHEMA_SQL).expect("initial schema should apply");
+        connection.execute("INSERT INTO product_groups (id, name, sort_order) VALUES ('group-restart', 'Ring', 0)", []).expect("group should persist");
+        connection.execute("INSERT INTO main_categories (id, product_group_id, name, sort_order) VALUES ('category-restart', 'group-restart', 'Women Ring', 0)", []).expect("category should persist");
+        connection.execute("INSERT INTO workshops (id, name) VALUES ('workshop-restart', 'Atelier')", []).expect("workshop should persist");
+        connection.execute(
+            "INSERT INTO products (id, product_code, name, product_group_id, main_category_id, workshop_id, purity_per_mille, weight_mg, stone_weight_mg, quantity, status)
+             VALUES ('product-restart', 'R-RESTART-001', 'Persistent Ring', 'group-restart', 'category-restart', 'workshop-restart', 750, 4385, 250, 1, 'active')",
+            [],
+        ).expect("product should persist");
+    }
+
+    {
+        let connection = Connection::open(&database_path).expect("database should reopen after restart");
+        connection.pragma_update(None, "foreign_keys", "ON").expect("foreign keys should re-enable");
+        let stored: (String, i64, i64, String, String, String) = connection.query_row(
+            "SELECT p.product_code, p.weight_mg, p.stone_weight_mg, g.name, c.name, w.name
+             FROM products p
+             JOIN product_groups g ON g.id = p.product_group_id
+             JOIN main_categories c ON c.id = p.main_category_id
+             JOIN workshops w ON w.id = p.workshop_id
+             WHERE p.id = 'product-restart' AND p.deleted_at IS NULL",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
+        ).expect("catalog product should remain queryable after restart");
+        assert_eq!(stored, ("R-RESTART-001".into(), 4385, 250, "Ring".into(), "Women Ring".into(), "Atelier".into()));
+        connection.execute(
+            "UPDATE products SET deleted_at = '2026-09-12T00:00:00.000Z', updated_at = '2026-09-12T00:00:00.000Z' WHERE id = 'product-restart'",
+            [],
+        ).expect("product should soft delete");
+    }
+
+    {
+        let connection = Connection::open(&database_path).expect("database should reopen a second time");
+        let active_count: i64 = connection.query_row("SELECT COUNT(*) FROM products WHERE deleted_at IS NULL", [], |row| row.get(0)).expect("active count should read");
+        let history_count: i64 = connection.query_row("SELECT COUNT(*) FROM products WHERE id = 'product-restart'", [], |row| row.get(0)).expect("history count should read");
+        assert_eq!(active_count, 0);
+        assert_eq!(history_count, 1);
+    }
+
+    fs::remove_file(&database_path).expect("temporary SQLite database should be removable");
 }

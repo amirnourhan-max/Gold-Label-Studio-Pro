@@ -110,6 +110,21 @@ describe("PersistentProductCatalogService", () => {
     expect(catalog.groups).toHaveLength(4);
   });
 
+  it("repairs a partially initialized catalog without duplicating existing workshops", async () => {
+    const catalog = new MemoryCatalogPersistence();
+    catalog.workshops = [{ id: "existing-workshop", name: "کارگاه موجود", isActive: true, ...audit } as WorkshopRecord];
+    const service = new PersistentProductCatalogService({
+      catalog, products: new MemoryProductPersistence(), images: new MemoryImageStorage(),
+      now: () => now, createId: (() => { let index = 0; return () => `repair-${++index}`; })(),
+    });
+
+    await service.initialize();
+    const snapshot = await service.loadCatalog();
+
+    expect(snapshot.groups).toHaveLength(4);
+    expect(snapshot.workshops.map(workshop => workshop.name)).toEqual(["کارگاه موجود"]);
+  });
+
   it("validates and creates a product with exact integer milligrams and a durable image reference", async () => {
     const products = new MemoryProductPersistence();
     const images = new MemoryImageStorage();

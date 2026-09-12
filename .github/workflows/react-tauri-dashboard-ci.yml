@@ -1,7 +1,7 @@
 name: React Tauri Dashboard CI
 on:
   push:
-    branches: [react-tauri-dashboard, persistence-foundation]
+    branches: [react-tauri-dashboard, persistence-foundation, product-catalog-integration]
 
 jobs:
   windows:
@@ -91,7 +91,12 @@ jobs:
               @{ Name = "products-1440x900"; Page = "products"; Size = "1440,900" },
               @{ Name = "products-1536x864"; Page = "products"; Size = "1536,864" },
               @{ Name = "products-1600x900"; Page = "products"; Size = "1600,900" },
-              @{ Name = "products-1920x1080"; Page = "products"; Size = "1920,1080" }
+              @{ Name = "products-1920x1080"; Page = "products"; Size = "1920,1080" },
+              @{ Name = "product-registration-1366x768"; Page = "product-registration"; Size = "1366,768" },
+              @{ Name = "product-registration-1440x900"; Page = "product-registration"; Size = "1440,900" },
+              @{ Name = "product-registration-1536x864"; Page = "product-registration"; Size = "1536,864" },
+              @{ Name = "product-registration-1600x900"; Page = "product-registration"; Size = "1600,900" },
+              @{ Name = "product-registration-1920x1080"; Page = "product-registration"; Size = "1920,1080" }
             )
             foreach ($check in $checks) {
               $output = "$pwd\visual-checks\$($check.Name).png"
