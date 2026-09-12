@@ -13,6 +13,12 @@ export interface ProductImageFileAdapter {
   remove(reference: string): Promise<void>;
 }
 
+export interface ProductImageStorage {
+  save(productId: string, image: ProductImageInput): Promise<string>;
+  load(reference: string): Promise<string>;
+  remove(reference: string): Promise<void>;
+}
+
 const extensionByMime = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -34,7 +40,7 @@ const encodeBase64 = (contents: Uint8Array): string => {
   return btoa(binary);
 };
 
-export class ProductImageStore {
+export class ProductImageStore implements ProductImageStorage {
   constructor(private readonly adapter: ProductImageFileAdapter) {}
 
   async save(productId: string, image: ProductImageInput): Promise<string> {

@@ -78,11 +78,11 @@
 - Produces `ProductCatalogService` methods for initialize, catalogs, product create/list/delete, and source mode.
 - Consumes only repositories, weight helpers, clock/ID dependencies, and `ProductImageStore`.
 
-- [ ] **Step 1: Write failing service tests for idempotent seed, validation, exact g→mg conversion, image rollback, list mapping, and soft delete**
-- [ ] **Step 2: Run `npm run test:run -- src/services/product-catalog` and verify expected failures**
-- [ ] **Step 3: Implement the persistent service, preview fallback, seed data, and singleton runtime**
-- [ ] **Step 4: Run all service and repository tests**
-- [ ] **Step 5: Commit as `feat: add product catalog application service`**
+- [x] **Step 1: Write failing service tests for idempotent seed, validation, exact g→mg conversion, image rollback, list mapping, and soft delete**
+- [x] **Step 2: Run `npm run test:run -- src/services/product-catalog` and verify expected failures**
+- [x] **Step 3: Implement the persistent service, preview fallback, seed data, and singleton runtime**
+- [x] **Step 4: Run all service and repository tests**
+- [x] **Step 5: Commit as `feat: add product catalog application service`**
 
 ### Task 4: Connect product registration without redesign
 
