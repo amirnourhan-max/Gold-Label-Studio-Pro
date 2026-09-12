@@ -57,11 +57,11 @@
 - Produces `ProductImageStore.save(productId, file)`, `load(reference)`, and `remove(reference)`.
 - Production files live below `product-images/` in `BaseDirectory.AppLocalData`.
 
-- [ ] **Step 1: Write failing tests for MIME validation, deterministic extension selection, save/load, and cleanup contracts**
-- [ ] **Step 2: Run `npm run test:run -- src/services/product-catalog/product-image-store.test.ts` and verify failure**
-- [ ] **Step 3: Implement the interface, Tauri FS adapter, plugin registration, and least-scope AppLocalData permissions**
-- [ ] **Step 4: Run the focused test and `npm run build`**
-- [ ] **Step 5: Commit as `feat: add durable product image storage`**
+- [x] **Step 1: Write failing tests for MIME validation, deterministic extension selection, save/load, and cleanup contracts**
+- [x] **Step 2: Run `npm run test:run -- src/services/product-catalog/product-image-store.test.ts` and verify failure**
+- [x] **Step 3: Implement the interface, Tauri FS adapter, plugin registration, and least-scope AppLocalData permissions**
+- [x] **Step 4: Run the focused test and `npm run build`**
+- [x] **Step 5: Commit as `feat: add durable product image storage`**
 
 ### Task 3: Implement the product-catalog application service
 
