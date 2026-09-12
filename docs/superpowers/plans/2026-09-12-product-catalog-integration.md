@@ -117,11 +117,11 @@
 - Consumes `useProductCatalog()`.
 - Produces real list refresh, statistics, search/group/category/purity/status filtering, soft delete, and registration navigation.
 
-- [ ] **Step 1: Write failing products-page tests for real rows, filtering, statistics, navigation, refresh, and soft delete**
-- [ ] **Step 2: Run focused tests and verify failures**
-- [ ] **Step 3: Implement data loading and interactions without changing the approved panel/table hierarchy**
-- [ ] **Step 4: Run all frontend tests and production build**
-- [ ] **Step 5: Commit as `feat: connect products inventory persistence`**
+- [x] **Step 1: Write failing products-page tests for real rows, filtering, statistics, navigation, refresh, and soft delete**
+- [x] **Step 2: Run focused tests and verify failures**
+- [x] **Step 3: Implement data loading and interactions without changing the approved panel/table hierarchy**
+- [x] **Step 4: Run all frontend tests and production build**
+- [x] **Step 5: Commit as `feat: connect products inventory persistence`**
 
 ### Task 6: Prove restart persistence and complete CI
 

@@ -18,6 +18,8 @@ const statusMap = {
   "فعال": "active",
   "در انتظار چاپ": "pending_print",
   "غیرفعال": "inactive",
+  "بسته‌بندی‌شده": "packaged",
+  "مرجوع‌شده": "returned",
 } as const;
 
 export class PreviewProductCatalogService implements ProductCatalogService {

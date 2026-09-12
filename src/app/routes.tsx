@@ -21,6 +21,6 @@ export const routeRegistry: Readonly<Record<ShellRoute, RouteRenderer>> = {
   "label-designer": () => <OperationsPreviewPage mode="label-designer" />,
   packaging: () => <OperationsPreviewPage mode="packaging" />,
   returns: () => <OperationsPreviewPage mode="returns" />,
-  products: () => <OperationsPreviewPage mode="products" />,
+  products: ({ onNewProduct }) => <OperationsPreviewPage mode="products" onNewProduct={onNewProduct} />,
   settings: () => <OperationsPreviewPage mode="settings" />,
 };

@@ -9,12 +9,12 @@ import { ProductsPage } from "../products/ProductsPage";
 
 type Mode = "label-print" | "label-designer" | "packaging" | "returns" | "products" | "settings";
 
-export function OperationsPreviewPage({ mode }: { mode: Mode }) {
+export function OperationsPreviewPage({ mode, onNewProduct = () => undefined }: { mode: Mode; onNewProduct?: () => void }) {
   if (mode === "label-print") return <LabelPrintPage />;
   if (mode === "label-designer") return <LabelDesignerPage />;
   if (mode === "packaging") return <PackagingPage />;
   if (mode === "returns") return <ReturnsPage />;
   if (mode === "settings") return <SettingsPage />;
-  if (mode === "products") return <ProductsPage />;
+  if (mode === "products") return <ProductsPage onNewProduct={onNewProduct} />;
   return null;
 }

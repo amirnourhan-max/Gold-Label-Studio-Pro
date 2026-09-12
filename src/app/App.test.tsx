@@ -67,7 +67,7 @@ describe("Gold Label Studio Pro shell", () => {
     window.history.replaceState({}, "", "/");
   });
 
-  it("opens the dedicated products workspace with filters and a preview-only inventory table", () => {
+  it("opens the dedicated products workspace with filters and a repository-backed inventory table", () => {
     window.history.replaceState({}, "", "/?page=products");
     render(<App />);
 
@@ -79,7 +79,7 @@ describe("Gold Label Studio Pro shell", () => {
     expect(screen.getByRole("searchbox", { name: "جستجوی محصولات" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "فیلتر محصولات" })).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "فهرست محصولات" })).toBeInTheDocument();
-    expect(screen.getByText("صرفاً نمایشی")).toBeInTheDocument();
+    expect(screen.getByText("حالت پیش‌نمایش")).toBeInTheDocument();
     window.history.replaceState({}, "", "/");
   });
 

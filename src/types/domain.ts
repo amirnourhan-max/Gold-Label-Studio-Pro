@@ -1,4 +1,4 @@
-export type ProductStatus = "فعال" | "در انتظار چاپ" | "غیرفعال";
+export type ProductStatus = "فعال" | "در انتظار چاپ" | "غیرفعال" | "بسته‌بندی‌شده" | "مرجوع‌شده";
 
 export type ProductRecord = Readonly<{
   id: number;
