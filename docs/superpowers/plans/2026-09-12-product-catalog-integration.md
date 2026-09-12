@@ -35,11 +35,11 @@
 - Produces explicit SQLite-row mappers and `ProductCatalogRecord`.
 - Produces `createGroup`, `createCategory`, `createWorkshop`, `softDeleteGroup`, `softDeleteCategory`, and joined `listActiveCatalog`.
 
-- [ ] **Step 1: Write repository tests that return snake_case SQLite rows and expect camelCase records**
-- [ ] **Step 2: Run `npm run test:run -- src/repositories/catalog-repository.test.ts src/repositories/product-repository.test.ts` and verify mapping/CRUD failures**
-- [ ] **Step 3: Implement explicit mapping and bound catalog/product operations**
-- [ ] **Step 4: Re-run focused tests and verify success**
-- [ ] **Step 5: Commit as `feat: complete product catalog repositories`**
+- [x] **Step 1: Write repository tests that return snake_case SQLite rows and expect camelCase records**
+- [x] **Step 2: Run `npm run test:run -- src/repositories/catalog-repository.test.ts src/repositories/product-repository.test.ts` and verify mapping/CRUD failures**
+- [x] **Step 3: Implement explicit mapping and bound catalog/product operations**
+- [x] **Step 4: Re-run focused tests and verify success**
+- [x] **Step 5: Commit as `feat: complete product catalog repositories`**
 
 ### Task 2: Add durable product-image storage
 

@@ -152,6 +152,33 @@ export type CreateProductInput = Readonly<{
   createdAt: UtcIsoString;
 }>;
 
+export type CreateProductGroupInput = Readonly<{
+  id: EntityId;
+  name: string;
+  sortOrder: number;
+  createdAt: UtcIsoString;
+}>;
+
+export type CreateMainCategoryInput = Readonly<{
+  id: EntityId;
+  productGroupId: EntityId;
+  name: string;
+  sortOrder: number;
+  createdAt: UtcIsoString;
+}>;
+
+export type CreateWorkshopInput = Readonly<{
+  id: EntityId;
+  name: string;
+  createdAt: UtcIsoString;
+}>;
+
+export type ProductCatalogRecord = ProductRecord & Readonly<{
+  groupName: string | null;
+  categoryName: string | null;
+  workshopName: string | null;
+}>;
+
 export type CreateUserInput = Readonly<{
   id: UserId;
   displayName: string;
