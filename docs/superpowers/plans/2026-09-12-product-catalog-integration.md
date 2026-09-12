@@ -98,11 +98,11 @@
 - Produces `useProductCatalog()` with service, source, revision, and mutation notification.
 - Registration saves through `ProductCatalogService.createProduct` and catalog mutations through service methods.
 
-- [ ] **Step 1: Write failing UI tests for persistent catalog load, group/category/workshop mutations, validation feedback, and product save**
-- [ ] **Step 2: Run registration/provider tests and verify expected failures**
-- [ ] **Step 3: Implement provider and event handlers while retaining existing DOM/class structure**
-- [ ] **Step 4: Run registration, App, responsive, and isolation tests**
-- [ ] **Step 5: Commit as `feat: connect product registration persistence`**
+- [x] **Step 1: Write failing UI tests for persistent catalog load, group/category/workshop mutations, validation feedback, and product save**
+- [x] **Step 2: Run registration/provider tests and verify expected failures**
+- [x] **Step 3: Implement provider and event handlers while retaining existing DOM/class structure**
+- [x] **Step 4: Run registration, App, responsive, and isolation tests**
+- [x] **Step 5: Commit as `feat: connect product registration persistence`**
 
 ### Task 5: Connect the products table, statistics, filters, and deletion
 

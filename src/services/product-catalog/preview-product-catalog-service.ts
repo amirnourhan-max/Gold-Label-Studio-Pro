@@ -1,6 +1,7 @@
 import { categoryAssets } from "../../assets/reference";
 import { displayData } from "../display-data";
 import { weightMgFromGramText } from "../database/weight";
+import { ProductCatalogValidationError } from "./product-catalog-service";
 import type {
   CatalogSnapshot,
   ProductCatalogService,
@@ -112,6 +113,18 @@ export class PreviewProductCatalogService implements ProductCatalogService {
   }
 
   async createProduct(draft: ProductDraft): Promise<void> {
+    if (!draft.code.trim()) throw new ProductCatalogValidationError("کد محصول را وارد کنید.");
+    if (!draft.name.trim()) throw new ProductCatalogValidationError("نام محصول را وارد کنید.");
+    if (!draft.groupId || !draft.categoryId || !draft.workshopId) {
+      throw new ProductCatalogValidationError("گروه، دسته اصلی و کارگاه را انتخاب کنید.");
+    }
+    const quantity = Number(draft.quantity);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw new ProductCatalogValidationError("تعداد باید یک عدد صحیح بزرگ‌تر از صفر باشد.");
+    }
+    if (this.products.some(product => product.code === draft.code.trim())) {
+      throw new ProductCatalogValidationError("کد محصول قبلاً ثبت شده است.");
+    }
     const group = this.catalog.groups.find(item => item.id === draft.groupId);
     const category = group?.categories.find(item => item.id === draft.categoryId);
     this.products.unshift({
