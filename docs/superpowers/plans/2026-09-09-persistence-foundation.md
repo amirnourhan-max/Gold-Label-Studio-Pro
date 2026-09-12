@@ -59,7 +59,7 @@
 - Produces `UtcIsoString`, branded milligram type `WeightMg`, `SqlValue`, `SqlClient`, `SqlStatementResult` and database record/insert types.
 - Produces `weightMgFromGramText(value: string): WeightMg` and `formatWeightMg(value: WeightMg): string`.
 
-- [ ] **Step 1: Write failing TypeScript contracts and precision tests**
+- [x] **Step 1: Write failing TypeScript contracts and precision tests**
 
 ```ts
 expect(weightMgFromGramText("4.385")).toBe(4385);
@@ -68,13 +68,13 @@ expect(() => weightMgFromGramText("4.3851")).toThrow("milligram precision");
 expect(formatWeightMg(4385 as WeightMg)).toBe("4.385");
 ```
 
-- [ ] **Step 2: Run the focused tests and verify failure**
+- [x] **Step 2: Run the focused tests and verify failure**
 
 Run: `npm run test:run -- src/services/database/weight.test.ts src/types/persistence.test.ts`
 
 Expected: FAIL because the persistence contracts and helpers do not yet exist.
 
-- [ ] **Step 3: Implement the smallest pure contract layer**
+- [x] **Step 3: Implement the smallest pure contract layer**
 
 ```ts
 export type SqlValue = string | number | null;
@@ -88,13 +88,13 @@ export interface SqlClient {
 
 Parse grams as a decimal string, pad its fractional part to three digits, reject non-numeric/negative values and fractions longer than three digits; do not convert through floating point.
 
-- [ ] **Step 4: Run focused tests and TypeScript build**
+- [x] **Step 4: Run focused tests and TypeScript build**
 
 Run: `npm run test:run -- src/services/database/weight.test.ts src/types/persistence.test.ts && npm run build`
 
 Expected: PASS with no UI file changes.
 
-- [ ] **Step 5: Commit the pure contracts**
+- [x] **Step 5: Commit the pure contracts**
 
 ```bash
 git add src/types/persistence.ts src/types/persistence.test.ts src/services/database/sql-client.ts src/services/database/weight.ts src/services/database/weight.test.ts
@@ -116,7 +116,7 @@ git commit -m "feat: add persistence contracts"
 - Consumes: the `DATABASE_URL` constant and Rust migration list defined in `database/migrations.rs`.
 - Produces `pub const DATABASE_URL: &str = "sqlite:gold-label-studio-pro.db";` and `pub fn migrations() -> Vec<tauri_plugin_sql::Migration>`.
 
-- [ ] **Step 1: Write failing Rust migration tests**
+- [x] **Step 1: Write failing Rust migration tests**
 
 ```rust
 #[test]
@@ -135,13 +135,13 @@ fn failed_migration_rolls_back_all_schema_changes() {
 }
 ```
 
-- [ ] **Step 2: Run Rust tests and verify failure**
+- [x] **Step 2: Run Rust tests and verify failure**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml database::tests`
 
 Expected: FAIL because no database module, schema, test harness, or SQLite test dependency exists.
 
-- [ ] **Step 3: Implement the versioned schema and registration**
+- [x] **Step 3: Implement the versioned schema and registration**
 
 Create `0001_initial.sql` with:
 
@@ -161,13 +161,13 @@ CREATE TABLE package_items (
 
 Include all approved entities, FK/index/check constraints, UTC defaults, update triggers where appropriate, active-name partial unique indexes, `return_sessions`, and the partial unique accepted-return index. Embed the SQL with `include_str!`, register it through `tauri_plugin_sql::Builder::add_migrations`, then add the plugin to the Tauri builder. Use the plugin’s transactional migration mechanism; the test helper explicitly proves rollback behavior.
 
-- [ ] **Step 4: Run migration tests and Rust formatting**
+- [x] **Step 4: Run migration tests and Rust formatting**
 
 Run: `cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo test --manifest-path src-tauri/Cargo.toml database::tests`
 
 Expected: PASS; schema supports soft deletes, blocks invalid FKs/duplicate package items and duplicate accepted return scans, and transaction rollback leaves no partial table.
 
-- [ ] **Step 5: Commit schema and bootstrap**
+- [x] **Step 5: Commit schema and bootstrap**
 
 ```bash
 git add src-tauri/Cargo.toml src-tauri/capabilities/default.json src-tauri/migrations/0001_initial.sql src-tauri/src/database src-tauri/src/lib.rs
@@ -188,7 +188,7 @@ git commit -m "feat: add sqlite migration foundation"
 - Consumes `SqlClient` from `sql-client.ts`.
 - Produces `openPersistenceDatabase(): Promise<SqlClient>` and `BackupPreparation` with `prepare`, `validateCopiedBackup`, and `reopen` method contracts.
 
-- [ ] **Step 1: Write failing adapter/bootstrap contract tests**
+- [x] **Step 1: Write failing adapter/bootstrap contract tests**
 
 ```ts
 await openWithClient(recordingClient);
@@ -200,23 +200,23 @@ expect(recordingClient.executeCalls).toEqual([
 expect(backupPreparation.copyDatabase).toBeUndefined();
 ```
 
-- [ ] **Step 2: Run focused tests and verify failure**
+- [x] **Step 2: Run focused tests and verify failure**
 
 Run: `npm run test:run -- src/services/database/database-bootstrap.test.ts src/services/database/backup-preparation.test.ts`
 
 Expected: FAIL because the SQL adapter and backup contract are not implemented.
 
-- [ ] **Step 3: Implement the adapter boundary and WAL policy**
+- [x] **Step 3: Implement the adapter boundary and WAL policy**
 
 Install `@tauri-apps/plugin-sql`; only `tauri-sql-client.ts` imports it. `openPersistenceDatabase` dynamically loads the configured database, then enables FK enforcement, WAL and busy timeout through `SqlClient`. Define backup preparation as a type-only lifecycle that will later checkpoint/flush, coordinate a coherent copy, validate and reopen; it must not copy any file in this phase.
 
-- [ ] **Step 4: Run focused tests and frontend build**
+- [x] **Step 4: Run focused tests and frontend build**
 
 Run: `npm run test:run -- src/services/database/database-bootstrap.test.ts src/services/database/backup-preparation.test.ts && npm run build`
 
 Expected: PASS; no React component imports the adapter.
 
-- [ ] **Step 5: Commit adapter isolation**
+- [x] **Step 5: Commit adapter isolation**
 
 ```bash
 git add package.json package-lock.json src/services/database/tauri-sql-client.ts src/services/database/database-bootstrap.ts src/services/database/backup-preparation.ts src/services/database/database-bootstrap.test.ts src/services/database/backup-preparation.test.ts
@@ -239,7 +239,7 @@ git commit -m "feat: add database client boundary"
 - Consumes `SqlClient`, `WeightMg`, UTC record and input types.
 - Produces repositories whose public methods use typed inputs/results and always bind values rather than interpolate data.
 
-- [ ] **Step 1: Write failing repository contract tests**
+- [x] **Step 1: Write failing repository contract tests**
 
 ```ts
 await products.listActive();
@@ -252,23 +252,23 @@ await users.softDelete("user-1", now);
 expect(client.lastExecute.sql).toContain("SET deleted_at = ?, updated_at = ?");
 ```
 
-- [ ] **Step 2: Run focused repository tests and verify failure**
+- [x] **Step 2: Run focused repository tests and verify failure**
 
 Run: `npm run test:run -- src/repositories`
 
 Expected: FAIL because repository modules do not exist.
 
-- [ ] **Step 3: Implement minimal typed repositories**
+- [x] **Step 3: Implement minimal typed repositories**
 
 Add only persistence-ready methods required by the schema contracts: active catalog reads and soft delete, product active reads/create/soft delete, package creation/item insertion, return-session scan insertion, settings upsert/read and user active reads/create/soft delete. Add all timestamp values at the repository boundary in UTC, bind every SQL parameter, preserve accepted/rejected return history, and never accept a raw password field—only `passwordHash` and `passwordHashAlgorithm`.
 
-- [ ] **Step 4: Run repository/precision tests and full frontend test suite**
+- [x] **Step 4: Run repository/precision tests and full frontend test suite**
 
 Run: `npm run test:run -- src/repositories src/services/database/weight.test.ts && npm run test:run`
 
 Expected: PASS; `displayData` tests continue to prove approved mocks remain intact.
 
-- [ ] **Step 5: Commit repository layer**
+- [x] **Step 5: Commit repository layer**
 
 ```bash
 git add src/repositories src/types/persistence.ts
@@ -285,7 +285,7 @@ git commit -m "feat: add persistence repositories"
 - Consumes all prior tasks.
 - Produces an evidence-backed persistence-foundation commit with UI mocks still active.
 
-- [ ] **Step 1: Add/adjust isolation verification**
+- [x] **Step 1: Add/adjust isolation verification**
 
 ```ts
 expect(readFileSync("src/services/display-data.ts", "utf8")).not.toContain("openPersistenceDatabase");
@@ -294,7 +294,7 @@ expect(readFileSync("src/features/operations/ReturnsPage.tsx", "utf8")).not.toCo
 
 Keep the test scoped to the explicit architecture boundary, not UI markup.
 
-- [ ] **Step 2: Run complete required verification**
+- [x] **Step 2: Run complete required verification**
 
 Run:
 
@@ -308,7 +308,7 @@ npm run tauri build -- --no-bundle
 
 Expected: frontend test/build and Rust migration tests pass. If this environment lacks Rust/Cargo, record the exact environmental failure after running the command; do not claim a local Tauri build passed without evidence.
 
-- [ ] **Step 3: Perform static policy checks**
+- [x] **Step 3: Perform static policy checks**
 
 Run:
 
@@ -320,14 +320,14 @@ git diff --check origin/react-tauri-dashboard...HEAD
 
 Expected: no user-visible legacy “خروج کالا”, no report route/UI, no plugin imports outside the adapter, and no whitespace errors.
 
-- [ ] **Step 4: Commit final plan state and implementation metadata**
+- [x] **Step 4: Commit final plan state and implementation metadata**
 
 ```bash
 git add docs/superpowers/plans/2026-09-09-persistence-foundation.md docs/superpowers/specs/2026-09-09-persistence-foundation-design.md
 git commit -m "docs: record persistence verification"
 ```
 
-- [ ] **Step 5: Publish only after verification**
+- [x] **Step 5: Publish only after verification**
 
 Push `persistence-foundation` for review; do not update `main` and do not wire the UI to the new repositories.
 
@@ -336,3 +336,11 @@ Push `persistence-foundation` for review; do not update `main` and do not wire t
 - UTC timestamps, integer milligrams, partial soft-delete indexes, transactional migrations, FK/unique/check constraints, backup-safe WAL contract, SQL isolation, mocks retained and SQLCipher substitution boundary are each covered in Tasks 1–5.
 - The plan contains no unassigned implementation placeholders; deferred production operations are intentionally out of scope rather than missing tasks.
 - Public names (`SqlClient`, `WeightMg`, `openPersistenceDatabase`, `BackupPreparation`) are defined before any task consumes them.
+
+## Verification Record
+
+- Final local frontend verification: `npm run test:run` passed (29 files, 71 tests) and `npm run build` passed after the isolation regression test was added.
+- Architecture-boundary verification: `persistence-isolation.test.ts` is included in that suite and proves React/display-data modules do not import the SQLite plugin or open the persistence database.
+- This workspace does not provide `cargo`; Rust migration tests, the complete Rust suite, the Tauri Windows build, and packaged-executable smoke test were executed by GitHub Actions instead.
+- GitHub Actions run `34526418722` passed on Windows for remote commit `0e1033d925090d439cd648546630a60754d1172c`, including frontend tests/build, visual checks, Rust tests, Tauri build, and executable smoke test.
+- The approved UI and `src/data/mock/*` remain unwired to persistence. `main` was not updated.
