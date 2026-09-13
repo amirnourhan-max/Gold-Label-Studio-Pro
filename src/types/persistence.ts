@@ -162,3 +162,24 @@ export type CreateUserInput = Readonly<{
   passwordVersion: number | null;
   createdAt: UtcIsoString;
 }>;
+
+export type CreateLabelTemplateInput = Readonly<{
+  id: EntityId;
+  name: string;
+  templateKind: string;
+  widthMm: number;
+  heightMm: number;
+  layoutJson: string;
+  isDefault: boolean;
+  createdAt: UtcIsoString;
+}>;
+
+export type UpdateLabelTemplateInput = Readonly<{
+  name: string;
+  templateKind: string;
+  widthMm: number;
+  heightMm: number;
+  layoutJson: string;
+  isDefault: boolean;
+  updatedAt: UtcIsoString;
+}>;
