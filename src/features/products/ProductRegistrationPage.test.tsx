@@ -37,25 +37,25 @@ describe("approved product registration screen", () => {
     expect(screen.getByRole("combobox", { name: "زیرمجموعه" })).toHaveValue("دستبند زنانه");
   });
 
-  it("adds and removes a main product group locally", () => {
+  it("adds and removes a main product group through the catalog gateway", async () => {
     render(<ProductRegistrationPage />);
     const groups = screen.getByRole("region", { name: "گروه / دسته اصلی" });
     fireEvent.click(within(groups).getByRole("button", { name: "افزودن گروه اصلی" }));
     fireEvent.change(within(groups).getByRole("textbox", { name: "نام گروه اصلی جدید" }), { target: { value: "النگو" } });
     fireEvent.click(within(groups).getByRole("button", { name: "ثبت گروه اصلی" }));
-    expect(within(groups).getByRole("button", { name: "النگو" })).toBeInTheDocument();
+    await waitFor(() => expect(within(groups).getByRole("button", { name: "النگو" })).toBeInTheDocument());
     fireEvent.click(within(groups).getByRole("button", { name: "حذف گروه اصلی" }));
-    expect(within(groups).queryByRole("button", { name: "النگو" })).not.toBeInTheDocument();
+    await waitFor(() => expect(within(groups).queryByRole("button", { name: "النگو" })).not.toBeInTheDocument());
   });
 
-  it("adds and removes workshop choices locally", () => {
+  it("adds and removes workshop choices through the catalog gateway", async () => {
     render(<ProductRegistrationPage />);
     fireEvent.click(screen.getByRole("button", { name: "افزودن کارگاه" }));
     fireEvent.change(screen.getByRole("textbox", { name: "نام کارگاه جدید" }), { target: { value: "کارگاه نمونه" } });
     fireEvent.click(screen.getByRole("button", { name: "ثبت کارگاه" }));
-    expect(screen.getByRole("combobox", { name: "کارگاه / سازنده" })).toHaveValue("کارگاه نمونه");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "کارگاه / سازنده" })).toHaveValue("کارگاه نمونه"));
     fireEvent.click(screen.getByRole("button", { name: "حذف کارگاه" }));
-    expect(screen.getByRole("combobox", { name: "کارگاه / سازنده" })).toHaveValue("کارگاه طلای پارسیان");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "کارگاه / سازنده" })).toHaveValue("کارگاه طلای پارسیان"));
     expect(screen.queryByRole("option", { name: "کارگاه نمونه" })).not.toBeInTheDocument();
   });
 
