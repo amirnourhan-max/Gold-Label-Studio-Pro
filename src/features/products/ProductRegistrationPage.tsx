@@ -2,11 +2,13 @@ import { ArrowUp, Check, ChevronDown, ChevronRight, ChevronsDown, Crosshair, Dat
 import { ChangeEvent, useRef, useState } from "react";
 import { categoryAssets, referenceAssets } from "../../assets/reference";
 import { displayData } from "../../services";
+import { productWorkflow } from "../../services/products/product-runtime";
+import type { ProductWorkflowPort } from "../../services/products/product-service";
 import "./product-registration.css";
 
 const { initialCategories, initialFields, initialMakers, previewNotice } = displayData.getProductRegistration();
 
-export function ProductRegistrationPage() {
+export function ProductRegistrationPage({ workflow = productWorkflow }: { workflow?: ProductWorkflowPort }) {
   const [categories, setCategories] = useState(initialCategories);
   const [categoryIndex, setCategoryIndex] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<number | null>(0);
@@ -15,6 +17,7 @@ export function ProductRegistrationPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(referenceAssets.productRegistrationRing);
   const [inInventory, setInInventory] = useState(true);
   const [notice, setNotice] = useState(previewNotice);
+  const [saving, setSaving] = useState(false);
   const [groupEditorOpen, setGroupEditorOpen] = useState(false);
   const [groupDraft, setGroupDraft] = useState("");
   const [makers, setMakers] = useState(initialMakers);
@@ -75,6 +78,29 @@ export function ProductRegistrationPage() {
     setInInventory(true);
     clearImage();
     setNotice(previewNotice);
+  };
+
+  const saveProduct = async (action: "ثبت" | "چاپ و ثبت") => {
+    setSaving(true);
+    try {
+      const result = await workflow.create({
+        name: fields.name,
+        code: fields.code,
+        weightGramText: fields.weight,
+        stoneWeightGramText: fields.manualWeight,
+        purity: fields.purity,
+        size: fields.size,
+        quantity: fields.quantity,
+        imagePath: imagePreview,
+        note: fields.note,
+        inInventory,
+      });
+      setNotice(result.persisted ? `${action} محصول با موفقیت انجام شد.` : `${action} — ${previewNotice}`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "ثبت محصول انجام نشد.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -165,8 +191,8 @@ export function ProductRegistrationPage() {
           </div>
           <div className="registration-actions" role="group" aria-label="عملیات محصول">
             <button type="button" className="registration-print" onClick={() => setNotice(`چاپ — ${previewNotice}`)}>چاپ<Printer size={23} /></button>
-            <button type="button" className="registration-save" onClick={() => setNotice(`ثبت — ${previewNotice}`)}>ثبت<Save size={22} /></button>
-            <button type="button" className="registration-print-save" onClick={() => setNotice(`چاپ و ثبت — ${previewNotice}`)}>چاپ و ثبت<PrinterCheck size={24} /></button>
+            <button type="button" className="registration-save" disabled={saving} onClick={() => void saveProduct("ثبت")}>ثبت<Save size={22} /></button>
+            <button type="button" className="registration-print-save" disabled={saving} onClick={() => void saveProduct("چاپ و ثبت")}>چاپ و ثبت<PrinterCheck size={24} /></button>
             <button type="button" className="registration-clear" onClick={clearForm}>پاک کردن فرم<Undo2 size={19} /></button>
           </div>
         </form>

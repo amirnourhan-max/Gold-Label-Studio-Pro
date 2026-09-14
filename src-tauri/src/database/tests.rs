@@ -1,3 +1,5 @@
+use std::{fs, time::{SystemTime, UNIX_EPOCH}};
+
 use rusqlite::{Connection, Error};
 
 use super::INITIAL_SCHEMA_SQL;
@@ -138,6 +140,69 @@ fn schema_enforces_integer_milligram_storage() {
         .expect("stored weight should read");
 
     assert_eq!(stored_weight, 4385);
+}
+
+#[test]
+fn product_persists_after_reopen_and_soft_delete_hides_it() {
+    let suffix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock should follow epoch")
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("gold-label-product-{suffix}.sqlite3"));
+
+    {
+        let connection = Connection::open(&path).expect("file database should open");
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .expect("foreign keys should be enabled");
+        connection
+            .execute_batch(INITIAL_SCHEMA_SQL)
+            .expect("initial schema should apply");
+        connection
+            .execute(
+                "INSERT INTO products (
+                    id, product_code, name, purity_per_mille, weight_mg, stone_weight_mg,
+                    quantity, status, created_at, updated_at
+                 ) VALUES (
+                    'restart-product', 'R-RESTART', 'Restart Ring', 750, 4385, 125,
+                    1, 'active', '2026-09-10T00:00:00.000Z', '2026-09-10T00:00:00.000Z'
+                 )",
+                [],
+            )
+            .expect("product should insert");
+    }
+
+    {
+        let connection = Connection::open(&path).expect("database should reopen");
+        let stored: (i64, i64, String) = connection
+            .query_row(
+                "SELECT weight_mg, stone_weight_mg, status
+                 FROM products WHERE product_code = 'R-RESTART' AND deleted_at IS NULL",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("product should survive restart");
+        assert_eq!(stored, (4385, 125, "active".to_owned()));
+
+        connection
+            .execute(
+                "UPDATE products SET deleted_at = '2026-09-11T00:00:00.000Z',
+                 updated_at = '2026-09-11T00:00:00.000Z'
+                 WHERE id = 'restart-product' AND deleted_at IS NULL",
+                [],
+            )
+            .expect("product should soft-delete");
+        let active_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM products WHERE deleted_at IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .expect("active product count should read");
+        assert_eq!(active_count, 0);
+    }
+
+    fs::remove_file(path).expect("temporary database should be removable");
 }
 
 #[test]
