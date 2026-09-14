@@ -73,7 +73,7 @@ describe("PersistenceCatalogGateway", () => {
       { id: "workshop-1", name: "کارگاه مرکزی", is_active: 1, created_at: now, updated_at: now, deleted_at: null },
     ];
     // Select order: groups and workshops in parallel, then categories per group.
-    client.returnsInOrder([groupRows, workshopRows, categoryRows]);
+    client.returnsInOrder(groupRows, workshopRows, categoryRows);
 
     const entry = await new PersistenceCatalogGateway(new CatalogRepository(client)).loadCatalog();
 
@@ -96,10 +96,10 @@ describe("PersistenceCatalogGateway", () => {
 
   it("routes add and remove operations to repository writes", async () => {
     const now = "2026-09-13T10:00:00.000Z";
-    const client = new RecordingSqlClient().returnsInOrder([
+    const client = new RecordingSqlClient().returnsInOrder(
       // The only select in this test: groups reload right after addGroup.
       [{ id: "group-created", name: "النگو", sort_order: 0, is_active: 1, created_at: now, updated_at: now, deleted_at: null }],
-    ]);
+    );
     const gateway = new PersistenceCatalogGateway(new CatalogRepository(client));
 
     const newGroupId = await gateway.addGroup("النگو");

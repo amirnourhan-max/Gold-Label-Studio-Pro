@@ -4,26 +4,32 @@ export class RecordingSqlClient implements SqlClient {
   readonly selectCalls: Array<Readonly<{ sql: string; bindValues: readonly SqlValue[] }>> = [];
   readonly executeCalls: Array<Readonly<{ sql: string; bindValues: readonly SqlValue[] }>> = [];
   private selectedRows: readonly unknown[] = [];
-  private queuedRows: Array<readonly unknown[]> | null = null;
+  private queuedRowSets: ReadonlyArray<readonly unknown[]> | null = null;
+  private queueIndex = 0;
 
   returns(rows: readonly unknown[]): this {
     this.selectedRows = rows;
-    this.queuedRows = null;
+    this.queuedRowSets = null;
+    this.queueIndex = 0;
     return this;
   }
 
-  /** Returns queued row sets one per select call, then empty sets. */
-  returnsInOrder(rowsPerCall: Array<readonly unknown[]>): this {
-    this.queuedRows = [...rowsPerCall];
-    this.selectedRows = [];
+  /** Returns each queued row set once, in call order, then empty results. */
+  returnsInOrder(...rowSets: ReadonlyArray<readonly unknown[]>): this {
+    this.queuedRowSets = rowSets.map((rows) => [...rows]);
+    this.queueIndex = 0;
     return this;
   }
 
   async select<T>(sql: string, bindValues: readonly SqlValue[] = []): Promise<readonly T[]> {
     this.selectCalls.push({ sql, bindValues });
-    if (this.queuedRows !== null) {
-      return (this.queuedRows.shift() ?? []) as readonly T[];
+
+    if (this.queuedRowSets) {
+      const rows = this.queuedRowSets[this.queueIndex] ?? [];
+      this.queueIndex += 1;
+      return rows as readonly T[];
     }
+
     return this.selectedRows as readonly T[];
   }
 

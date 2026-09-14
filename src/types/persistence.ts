@@ -152,6 +152,17 @@ export type CreateProductInput = Readonly<{
   createdAt: UtcIsoString;
 }>;
 
+export type CreatePackageInput = Readonly<{
+  id: PackageId;
+  packageCode: string;
+  status: PackageStatus;
+  operatorUserId: UserId | null;
+  itemCount: number;
+  totalWeightMg: WeightMg;
+  closedAt: UtcIsoString | null;
+  createdAt: UtcIsoString;
+}>;
+
 export type CreateUserInput = Readonly<{
   id: UserId;
   displayName: string;

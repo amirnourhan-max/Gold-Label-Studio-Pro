@@ -1,13 +1,4 @@
-import type { LabelPrintQueueItem, PackageItem, ReturnScan } from "../../types";
-
-export const packageItems: readonly PackageItem[] = [
-  ["R-250604-00125", "انگشتر طرح گل", "انگشتر", "750", "4.385 g"],
-  ["B-250604-00087", "دستبند کارتیر", "دستبند", "750", "8.340 g"],
-  ["N-250604-00056", "گردنبند طلا توپ قلب", "گردنبند", "750", "3.215 g"],
-  ["G-250604-00031", "گوشواره حلقه‌ای", "گوشواره", "750", "2.870 g"],
-  ["R-250604-00126", "انگشتر طرح پیچ", "انگشتر", "750", "4.102 g"],
-  ["P-250604-00099", "پلاک اسم محمد", "پلاک", "750", "1.950 g"],
-];
+import type { LabelPrintQueueItem, ReturnScan } from "../../types";
 
 export const labelPrintTemplates = ["انگشتر", "دستبند", "گردنبند", "سرویس", "پلاک"] as const;
 export const labelPrintQueue: readonly LabelPrintQueueItem[] = [

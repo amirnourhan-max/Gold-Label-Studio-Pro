@@ -6,7 +6,6 @@ import {
   previewNotice,
   labelPrintQueue,
   labelPrintTemplates,
-  packageItems,
   productRows,
   returnScans,
 } from "../data/mock";
@@ -21,7 +20,6 @@ export const displayData = {
   listDashboardDevices: () => dashboardDeviceStatus,
   listProducts: () => productRows,
   getProductRegistration: () => ({ initialFields, previewNotice }),
-  listPackageItems: () => packageItems,
   listLabelPrintTemplates: () => labelPrintTemplates,
   listLabelPrintQueue: () => labelPrintQueue,
   listReturnScans: () => returnScans,
