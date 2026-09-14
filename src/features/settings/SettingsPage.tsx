@@ -4,7 +4,6 @@ import {
   HardDriveDownload, KeyRound, Pencil, Plus, Printer, ScanLine, Scale,
   ShieldCheck, Trash2, UserPlus, UsersRound,
 } from "lucide-react";
-import { displayData } from "../../services";
 import { createDefaultSettingsGateway } from "../../services/settings/settings-gateway";
 import { validateSettings } from "../../services/settings/settings-validation";
 import type {
@@ -16,9 +15,33 @@ import type {
   SettingsSnapshot,
 } from "../../services/settings/settings-contract";
 import { approvedSettingsSnapshot } from "../../services/settings/settings-contract";
+import { defaultUserService } from "../../services/users/user-gateway";
+import { toPersianDigits, type UserListItem, type UserSnapshot } from "../../services/users/user-contract";
+import type { UserMutationResult } from "../../services/users/user-service";
+import type { UserValidationIssue } from "../../services/users/user-validation";
+import type { UserRole } from "../../types/persistence";
 import "./settings-page.css";
 
-const displayUsers = displayData.listUsers();
+const USER_LOAD_ERROR_MESSAGE = "بارگذاری فهرست کاربران ناموفق بود";
+
+type UserStatus = "loading" | "ready" | "error";
+
+type UserDialog =
+  | Readonly<{ mode: "create"; displayName: string; username: string; role: UserRole; password: string }>
+  | Readonly<{ mode: "edit"; id: string; displayName: string; username: string; role: UserRole; isActive: boolean }>
+  | Readonly<{ mode: "password"; id: string; displayName: string; password: string; confirmation: string }>;
+
+const dialogTitle = (dialog: UserDialog): string => {
+  if (dialog.mode === "create") return "افزودن کاربر";
+  if (dialog.mode === "edit") return "ویرایش کاربر";
+  return "تعویض رمز عبور";
+};
+
+const dialogSubtitle = (dialog: UserDialog): string => {
+  if (dialog.mode === "create") return "حساب کاربری جدید را برای برنامه ثبت کنید";
+  if (dialog.mode === "edit") return `ویرایش مشخصات ${dialog.displayName}`;
+  return `تعیین رمز عبور جدید برای ${dialog.displayName}`;
+};
 
 type SettingsStatus = "loading" | "ready" | "error";
 
@@ -63,6 +86,13 @@ export function SettingsPage() {
   const gatewayRef = useRef<Promise<SettingsGateway> | null>(null);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
+  const [userSnapshot, setUserSnapshot] = useState<UserSnapshot | null>(null);
+  const [userStatus, setUserStatus] = useState<UserStatus>("loading");
+  const [userNotice, setUserNotice] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<UserDialog | null>(null);
+  const [dialogIssues, setDialogIssues] = useState<readonly UserValidationIssue[]>([]);
+  const [saving, setSaving] = useState(false);
+
   /** One gateway (and therefore one SQLite connection) for load and saves. */
   const resolveGateway = () => {
     if (!gatewayRef.current) gatewayRef.current = createDefaultSettingsGateway();
@@ -81,6 +111,26 @@ export function SettingsPage() {
       })
       .catch(() => {
         if (!cancelled) setStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    defaultUserService()
+      .then(service => service.load())
+      .then(loaded => {
+        if (cancelled) return;
+        setUserSnapshot(loaded);
+        setUserStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setUserStatus("error");
       });
 
     return () => {
@@ -123,14 +173,81 @@ export function SettingsPage() {
     persist(next);
   };
 
-  const notice = status === "error"
+  const settingsNotice = status === "error"
     ? LOAD_ERROR_MESSAGE
     : validationMessage ?? (saveFailed ? SAVE_ERROR_MESSAGE : null);
+
+  const applyResult = (result: UserMutationResult, insideDialog: boolean): void => {
+    if (result.status === "saved") {
+      setUserSnapshot(result.snapshot);
+      setDialogIssues([]);
+      setDialog(null);
+      setUserNotice(null);
+      return;
+    }
+
+    const issues = result.status === "invalid"
+      ? result.issues
+      : [{ field: "general", message: result.message }];
+
+    if (insideDialog) setDialogIssues(issues);
+    else setUserNotice(issues[0]?.message ?? null);
+  };
+
+  const runDialogMutation = async (work: (service: Awaited<ReturnType<typeof defaultUserService>>) => Promise<UserMutationResult>) => {
+    setSaving(true);
+    try {
+      applyResult(await work(await defaultUserService()), true);
+    } catch {
+      setDialogIssues([{ field: "general", message: "ذخیره تغییرات کاربر ناموفق بود" }]);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitDialog = async () => {
+    if (!dialog) return;
+
+    if (dialog.mode === "create") {
+      await runDialogMutation(service => service.createUser({
+        displayName: dialog.displayName, username: dialog.username, role: dialog.role, password: dialog.password,
+      }));
+      return;
+    }
+
+    if (dialog.mode === "edit") {
+      await runDialogMutation(async service => {
+        const updated = await service.updateUser({
+          id: dialog.id, displayName: dialog.displayName, username: dialog.username, role: dialog.role,
+        });
+        if (updated.status !== "saved") return updated;
+        return service.setUserActive(dialog.id, dialog.isActive);
+      });
+      return;
+    }
+
+    await runDialogMutation(service => service.changePassword({
+      id: dialog.id, password: dialog.password, confirmation: dialog.confirmation,
+    }));
+  };
+
+  const removeUser = async (user: UserListItem) => {
+    setSaving(true);
+    try {
+      applyResult(await (await defaultUserService()).removeUser(user.id), false);
+    } catch {
+      setUserNotice("ذخیره تغییرات کاربر ناموفق بود");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const users = userSnapshot?.users ?? [];
 
   return <main className="settings-page" data-testid="settings-page">
     <header className="settings-heading">
       <div><span className="settings-heading-icon"><ShieldCheck size={31} /></span><div><h1>تنظیمات</h1><p>مدیریت دستگاه‌ها، نسخه‌های پشتیبان و دسترسی کاربران</p></div></div>
-      <p className="settings-ui-note" data-testid="settings-ui-only-note"><CheckCircle2 size={16} />این بخش صرفاً نمایشی است</p>
+      <p className="settings-ui-note" data-testid="settings-ui-only-note"><CheckCircle2 size={16} />تنظیمات ذخیره می‌شوند؛ وضعیت اتصال دستگاه‌ها نمایشی است</p>
     </header>
 
     <section className="settings-devices" aria-label="تنظیمات دستگاه‌ها">
@@ -169,15 +286,53 @@ export function SettingsPage() {
     </section>
 
     <section className="settings-users-card" role="region" aria-label="مدیریت کاربران">
-      <header className="settings-users-heading"><div><span className="settings-card-icon"><UsersRound size={22} /></span><div><h2>مدیریت کاربران</h2><p>سطح دسترسی و حساب‌های کاربری برنامه</p></div></div><button type="button" className="settings-add-user" aria-label="افزودن کاربر"><UserPlus size={18} />افزودن کاربر</button></header>
+      <header className="settings-users-heading"><div><span className="settings-card-icon"><UsersRound size={22} /></span><div><h2>مدیریت کاربران</h2><p>سطح دسترسی و حساب‌های کاربری برنامه</p></div></div><button type="button" className="settings-add-user" aria-label="افزودن کاربر" onClick={() => { setDialogIssues([]); setDialog({ mode: "create", displayName: "", username: "", role: "operator", password: "" }); }}><UserPlus size={18} />افزودن کاربر</button></header>
       <div className="settings-users-scroll">
         <table aria-label="فهرست کاربران">
           <thead><tr><th>نام کاربر</th><th>نقش</th><th>نام کاربری</th><th>وضعیت</th><th>عملیات</th></tr></thead>
-          <tbody>{displayUsers.map(([name, role, username, status]) => <tr key={username}><td><span className="settings-avatar">{name.slice(0, 1)}</span>{name}</td><td><span className={role === "مدیر سیستم" ? "settings-role manager" : "settings-role"}>{role}</span></td><td dir="ltr">{username}</td><td><span className={status === "فعال" ? "settings-active" : "settings-disabled"}><i />{status}</span></td><td><div className="settings-user-actions"><button type="button" aria-label={`ویرایش ${name}`}><Pencil size={16} /></button><button type="button" aria-label={`تعویض رمز ${name}`}><KeyRound size={16} /></button><button type="button" aria-label={`حذف ${name}`}><Trash2 size={16} /></button></div></td></tr>)}</tbody>
+          <tbody>
+            {users.map(user => <tr key={user.id}>
+              <td><span className="settings-avatar">{user.displayName.slice(0, 1)}</span>{user.displayName}</td>
+              <td><span className={user.roleLabel === "مدیر سیستم" ? "settings-role manager" : "settings-role"}>{user.roleLabel}</span></td>
+              <td dir="ltr">{user.username}</td>
+              <td><span className={user.isActive ? "settings-active" : "settings-disabled"}><i />{user.statusLabel}</span></td>
+              <td><div className="settings-user-actions">
+                <button type="button" aria-label={`ویرایش ${user.displayName}`} onClick={() => { setDialogIssues([]); setDialog({ mode: "edit", id: user.id, displayName: user.displayName, username: user.username, role: user.role, isActive: user.isActive }); }}><Pencil size={16} /></button>
+                <button type="button" aria-label={`تعویض رمز ${user.displayName}`} onClick={() => { setDialogIssues([]); setDialog({ mode: "password", id: user.id, displayName: user.displayName, password: "", confirmation: "" }); }}><KeyRound size={16} /></button>
+                <button type="button" aria-label={`حذف ${user.displayName}`} disabled={saving} onClick={() => void removeUser(user)}><Trash2 size={16} /></button>
+              </div></td>
+            </tr>)}
+            {userStatus === "loading" ? <tr className="settings-users-message"><td colSpan={5} role="status">در حال بارگذاری کاربران…</td></tr> : null}
+            {userStatus === "error" ? <tr className="settings-users-message"><td colSpan={5} role="alert">{USER_LOAD_ERROR_MESSAGE}</td></tr> : null}
+            {userStatus === "ready" && users.length === 0 ? <tr className="settings-users-message"><td colSpan={5}>هیچ کاربری ثبت نشده است</td></tr> : null}
+          </tbody>
         </table>
       </div>
-      <footer><span>۳ کاربر ثبت‌شده</span><span>تغییرات این بخش ذخیره نمی‌شوند</span><button type="button"><Plus size={16} />دعوت از کاربر</button></footer>
+      <footer><span>{toPersianDigits(userSnapshot?.totalCount ?? 0)} کاربر ثبت‌شده</span><span>تغییرات این بخش ذخیره می‌شوند</span><button type="button" onClick={() => { setDialogIssues([]); setDialog({ mode: "create", displayName: "", username: "", role: "operator", password: "" }); }}><Plus size={16} />دعوت از کاربر</button></footer>
     </section>
-    {notice ? <p className="settings-visually-hidden" role="alert">{notice}</p> : null}
+
+    {dialog ? <div className="settings-user-overlay">
+      <section className="settings-user-dialog" role="dialog" aria-modal="true" aria-label={dialogTitle(dialog)}>
+        <header><h2>{dialogTitle(dialog)}</h2><p>{dialogSubtitle(dialog)}</p></header>
+        <div className="settings-user-fields">
+          {dialog.mode === "create" || dialog.mode === "edit" ? <>
+            <label><span>نام کاربر</span><input value={dialog.displayName} onChange={event => setDialog({ ...dialog, displayName: event.target.value })} /></label>
+            <label><span>نام کاربری</span><input dir="ltr" value={dialog.username} onChange={event => setDialog({ ...dialog, username: event.target.value })} /></label>
+            <label><span>نقش</span><span className="settings-select"><select value={dialog.role} onChange={event => setDialog({ ...dialog, role: event.target.value as UserRole })}><option value="admin">مدیر سیستم</option><option value="operator">اپراتور</option></select><ChevronDown size={14} /></span></label>
+          </> : null}
+          {dialog.mode === "edit" ? <label><span>وضعیت</span><span className="settings-select"><select value={dialog.isActive ? "active" : "inactive"} onChange={event => setDialog({ ...dialog, isActive: event.target.value === "active" })}><option value="active">فعال</option><option value="inactive">غیرفعال</option></select><ChevronDown size={14} /></span></label> : null}
+          {dialog.mode === "create" || dialog.mode === "password" ? <label><span>رمز عبور</span><input type="password" dir="ltr" value={dialog.password} onChange={event => setDialog({ ...dialog, password: event.target.value })} /></label> : null}
+          {dialog.mode === "password" ? <label><span>تکرار رمز عبور</span><input type="password" dir="ltr" value={dialog.confirmation} onChange={event => setDialog({ ...dialog, confirmation: event.target.value })} /></label> : null}
+          {dialogIssues.map(issue => <p className="settings-user-error" key={issue.field} role="alert">{issue.message}</p>)}
+        </div>
+        <footer>
+          <button type="button" className="settings-primary" disabled={saving} onClick={() => void submitDialog()}>{saving ? "در حال ذخیره…" : "ذخیره"}</button>
+          <button type="button" disabled={saving} onClick={() => { setDialog(null); setDialogIssues([]); }}>انصراف</button>
+        </footer>
+      </section>
+    </div> : null}
+
+    {settingsNotice ? <p className="settings-visually-hidden" role="alert">{settingsNotice}</p> : null}
+    {userNotice ? <p className="settings-visually-hidden" role="alert">{userNotice}</p> : null}
   </main>;
 }
