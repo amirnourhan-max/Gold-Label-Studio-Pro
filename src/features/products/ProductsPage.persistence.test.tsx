@@ -32,7 +32,7 @@ describe("ProductsPage persistence integration", () => {
     expect(within(screen.getByRole("table", { name: "فهرست محصولات" })).queryByText("دستبند")).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole("searchbox", { name: "جستجوی محصولات" }), { target: { value: "" } });
     fireEvent.change(screen.getByRole("combobox", { name: "وضعیت" }), { target: { value: "غیرفعال" } });
-    expect(within(screen.getByRole("table", { name: "فهرست محصولات" })).getByText("دستبند")).toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: "فهرست محصولات" })).getByText("B-002")).toBeInTheDocument();
     expect(screen.queryByText("انگشتر پایدار")).not.toBeInTheDocument();
   });
 
