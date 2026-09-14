@@ -1,16 +1,21 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use base64::Engine as _;
 use rusqlite::Connection;
 use tauri::{AppHandle, Manager};
 
 const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
 const DATABASE_FILE_NAME: &str = "gold-label-studio-pro.db";
 
-static SERIAL_SESSIONS: Mutex<HashMap<u64, Box<dyn serialport::SerialPort + Send>>> = Mutex::new(HashMap::new());
+/// Open serial sessions, keyed by the id handed to the frontend. `SerialPort`
+/// already requires `Send`, so the mutex keeps the map shareable across the
+/// command threads without an extra bound.
+static SERIAL_SESSIONS: LazyLock<Mutex<HashMap<u64, Box<dyn serialport::SerialPort>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 static NEXT_SERIAL_ID: Mutex<u64> = Mutex::new(1);
 
 /// Resolves the live SQLite file to the same location the SQL plugin uses.
@@ -171,7 +176,7 @@ pub fn serial_open(port: String, baud: u32) -> Result<u64, String> {
     let mut next = NEXT_SERIAL_ID.lock().map_err(|_| "serial id lock poisoned".to_string())?;
     let session_id = *next;
     *next += 1;
-    sessions.insert(session_id, Box::new(device));
+    sessions.insert(session_id, device);
     Ok(session_id)
 }
 
@@ -315,6 +320,7 @@ pub fn print_raw(printer: String, payload: String) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine as _;
 
     #[test]
     fn validate_rejects_non_sqlite_files() {
