@@ -4,15 +4,21 @@ import { App } from "./App";
 
 afterEach(cleanup);
 
+/** The shell now boots through the auth session provider, so it renders async. */
+const renderApp = async () => {
+  render(<App />);
+  await screen.findByTestId("app-shell");
+};
+
 describe("Gold Label Studio Pro shell", () => {
-  it("renders the application root", () => {
-    render(<App />);
+  it("renders the application root", async () => {
+    await renderApp();
     expect(screen.getByTestId("app-shell")).toBeInTheDocument();
     expect(screen.getByText("Gold Label Studio Pro")).toBeInTheDocument();
   });
 
-  it("opens the product registration preview from the sidebar and marks it current", () => {
-    render(<App />);
+  it("opens the product registration preview from the sidebar and marks it current", async () => {
+    await renderApp();
 
     fireEvent.click(screen.getByRole("button", { name: "ثبت محصول" }));
 
@@ -20,8 +26,8 @@ describe("Gold Label Studio Pro shell", () => {
     expect(screen.getByRole("button", { name: "ثبت محصول" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("opens the same product registration preview from Dashboard's new product action", () => {
-    render(<App />);
+  it("opens the same product registration preview from Dashboard's new product action", async () => {
+    await renderApp();
 
     fireEvent.click(screen.getByRole("button", { name: "محصول جدید" }));
 
@@ -29,17 +35,17 @@ describe("Gold Label Studio Pro shell", () => {
     expect(screen.getByRole("button", { name: "ثبت محصول" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("opens visual-check pages directly from the page query", () => {
+  it("opens visual-check pages directly from the page query", async () => {
     window.history.replaceState({}, "", "/?page=packaging");
-    render(<App />);
+    await renderApp();
 
     expect(screen.getByTestId("packaging-page")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "بسته‌بندی ‹" })).toHaveAttribute("aria-current", "page");
     window.history.replaceState({}, "", "/");
   });
 
-  it("opens the returns workspace from the renamed sidebar item", () => {
-    render(<App />);
+  it("opens the returns workspace from the renamed sidebar item", async () => {
+    await renderApp();
 
     fireEvent.click(screen.getByRole("button", { name: "مرجوع کالا ‹" }));
 
@@ -47,18 +53,18 @@ describe("Gold Label Studio Pro shell", () => {
     expect(screen.getByRole("button", { name: "مرجوع کالا ‹" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("opens the returns workspace directly from the returns route", () => {
+  it("opens the returns workspace directly from the returns route", async () => {
     window.history.replaceState({}, "", "/?page=returns");
-    render(<App />);
+    await renderApp();
 
     expect(screen.getByTestId("returns-page")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "مرجوع کالا ‹" })).toHaveAttribute("aria-current", "page");
     window.history.replaceState({}, "", "/");
   });
 
-  it("opens the settings workspace from the settings route", () => {
+  it("opens the settings workspace from the settings route", async () => {
     window.history.replaceState({}, "", "/?page=settings");
-    render(<App />);
+    await renderApp();
 
     expect(screen.getByTestId("settings-page")).toBeInTheDocument();
     expect(
@@ -67,9 +73,9 @@ describe("Gold Label Studio Pro shell", () => {
     window.history.replaceState({}, "", "/");
   });
 
-  it("opens the dedicated products workspace with filters and a preview-only inventory table", () => {
+  it("opens the dedicated products workspace with filters and a preview-only inventory table", async () => {
     window.history.replaceState({}, "", "/?page=products");
-    render(<App />);
+    await renderApp();
 
     expect(screen.getByTestId("products-page")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "محصولات" })).toBeInTheDocument();
@@ -83,9 +89,9 @@ describe("Gold Label Studio Pro shell", () => {
     window.history.replaceState({}, "", "/");
   });
 
-  it("rejects the removed reports route and falls back to the dashboard", () => {
+  it("rejects the removed reports route and falls back to the dashboard", async () => {
     window.history.replaceState({}, "", "/?page=reports");
-    render(<App />);
+    await renderApp();
 
     expect(screen.getByTestId("dashboard")).toBeInTheDocument();
     expect(screen.queryByText("گزارش‌ها")).not.toBeInTheDocument();

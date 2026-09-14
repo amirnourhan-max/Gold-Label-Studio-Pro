@@ -25,13 +25,13 @@ describe("settings user-interface preview", () => {
     await expectScaleCardValues("A&D GX-3002A", "COM3", "9600");
   });
 
-  it("keeps automatic and manual backup controls visible as UI-only previews", async () => {
+  it("keeps automatic and manual backup controls visible", async () => {
     render(<SettingsPage />);
 
     const autoBackup = screen.getByRole("region", { name: "بکاپ‌گیری اتوماتیک" });
     const backupSwitch = within(autoBackup).getByRole("switch", { name: "فعال‌سازی بکاپ خودکار" });
     await waitFor(() => expect(backupSwitch).toHaveAttribute("aria-checked", "true"));
-    expect(within(autoBackup).getByText("آخرین بکاپ: امروز، ۱۰:۲۴")).toBeInTheDocument();
+    expect(within(autoBackup).getByText("آخرین بکاپ: ثبت نشده")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "گرفتن بکاپ" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "بازیابی بکاپ" })).toBeInTheDocument();
   });

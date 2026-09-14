@@ -81,6 +81,18 @@ describe("SettingsRepository", () => {
     });
   });
 
+  it("records the last backup timestamp without changing the configured schedule", async () => {
+    const client = new RecordingSqlClient();
+
+    await new SettingsRepository(client).recordBackupAt("2026-09-14T23:00:00.000Z");
+
+    expect(client.executeCalls[0]).toMatchObject({
+      sql: expect.stringContaining("last_backup_at = excluded.last_backup_at"),
+      bindValues: ["2026-09-14T23:00:00.000Z", "2026-09-14T23:00:00.000Z", "2026-09-14T23:00:00.000Z"],
+    });
+    expect(client.executeCalls[0]?.sql).not.toContain("interval_minutes = excluded.interval_minutes");
+  });
+
   it("maps snake_case device and backup rows to camelCase records", async () => {
     const client = new RecordingSqlClient();
     client.returnsInOrder(

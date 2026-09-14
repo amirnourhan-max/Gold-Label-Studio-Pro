@@ -214,6 +214,17 @@ export class SettingsRepository {
     return rows[0] ? mapBackupRow(rows[0]) : null;
   }
 
+  /** Records the timestamp of the last successful backup without touching the
+   * configured interval/destination values. */
+  async recordBackupAt(completedAt: string): Promise<unknown> {
+    return this.client.execute(
+      `INSERT INTO backup_settings (id, is_enabled, interval_minutes, destination_path, last_backup_at, created_at, updated_at)
+       VALUES (1, 1, 1440, NULL, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET last_backup_at = excluded.last_backup_at, updated_at = excluded.updated_at`,
+      [completedAt, completedAt, completedAt],
+    );
+  }
+
   async upsertBackupSetting(input: Readonly<{
     isEnabled: boolean;
     intervalMinutes: number;

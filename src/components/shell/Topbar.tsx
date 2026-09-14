@@ -1,5 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Bell, ChevronDown, Maximize2, Minus, Search, Settings, UserRound, X } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Maximize2, Minus, Search, Settings, UserRound, X } from "lucide-react";
+import { roleLabels } from "../../services/users/user-contract";
+import { useAuthSession } from "../../features/auth/auth-session";
 
 async function runWindowAction(action: "minimize" | "maximize" | "close") {
   try {
@@ -14,6 +16,7 @@ async function runWindowAction(action: "minimize" | "maximize" | "close") {
 
 export function Topbar() {
   const stopDrag = (event: React.PointerEvent<HTMLButtonElement>) => event.stopPropagation();
+  const { user, signOut } = useAuthSession();
 
   return (
     <header className="topbar" data-testid="window-drag-region" data-tauri-drag-region>
@@ -29,8 +32,8 @@ export function Topbar() {
         <div className="top-separator"/>
         <div className="user-block">
           <div className="avatar"><UserRound size={22}/></div>
-          <div><b>مدیر سیستم</b><small>مدیر ارشد</small></div>
-          <ChevronDown size={15}/>
+          <div><b>{user?.displayName ?? "مدیر سیستم"}</b><small>{user ? roleLabels[user.role] : "مدیر ارشد"}</small></div>
+          {user ? <button className="icon-button" aria-label="خروج از حساب" onPointerDown={stopDrag} onClick={signOut}><LogOut size={17}/></button> : <ChevronDown size={15}/>}
         </div>
       </div>
 

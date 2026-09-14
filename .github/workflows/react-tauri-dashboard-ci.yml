@@ -13,6 +13,7 @@ on:
         settings-persistence-integration,
         users-auth-integration,
         feature-integration-v1,
+        final-functional-integration,
       ]
 
 jobs:

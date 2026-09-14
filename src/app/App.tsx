@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { AuthGate } from "../features/auth/AuthGate";
+import { AuthSessionProvider } from "../features/auth/auth-session";
 import { AppShell } from "../layouts/AppShell";
 import type { ShellRoute } from "../types";
 import { resolveShellRoute, routeRegistry } from "./routes";
@@ -11,7 +13,11 @@ function initialRoute(): ShellRoute {
 export function App(){
   const [activePage, setActivePage] = useState<ShellRoute>(initialRoute);
 
-  return <AppShell activePage={activePage} onNavigate={setActivePage}>
-    {routeRegistry[activePage]({ onNewProduct: () => setActivePage("product-registration") })}
-  </AppShell>;
+  return <AuthSessionProvider>
+    <AuthGate>
+      <AppShell activePage={activePage} onNavigate={setActivePage}>
+        {routeRegistry[activePage]({ onNewProduct: () => setActivePage("product-registration") })}
+      </AppShell>
+    </AuthGate>
+  </AuthSessionProvider>;
 }

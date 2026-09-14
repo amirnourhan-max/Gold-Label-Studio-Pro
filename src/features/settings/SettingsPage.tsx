@@ -14,7 +14,16 @@ import type {
   SettingsGateway,
   SettingsSnapshot,
 } from "../../services/settings/settings-contract";
-import { approvedSettingsSnapshot } from "../../services/settings/settings-contract";
+import { approvedSettingsSnapshot, backupIntervalOptions } from "../../services/settings/settings-contract";
+import { createBackupService } from "../../services/backup/backup-service";
+import type { BackupOutcome } from "../../services/backup/backup-contract";
+import { createDefaultBackupStateGateway, type BackupStateGateway } from "../../services/backup/backup-state-gateway";
+import {
+  createDeviceProbeService,
+  type DeviceProbeKind,
+  type DeviceProbeOutcome,
+} from "../../services/hardware/device-probe";
+import { isTauriEnvironment } from "../../services/hardware/hardware-environment";
 import { defaultUserService } from "../../services/users/user-gateway";
 import { toPersianDigits, type UserListItem, type UserSnapshot } from "../../services/users/user-contract";
 import type { UserMutationResult } from "../../services/users/user-service";
@@ -56,15 +65,25 @@ type DeviceCardProps = {
   fields: readonly (readonly [string, string])[];
   action: string;
   onFieldChange?: (label: string, value: string) => void;
+  onAction?: () => void;
+  /** `null` keeps the approved default until a real probe has run. */
+  probe?: DeviceProbeOutcome | null;
+  busy?: boolean;
 };
 
-function DeviceCard({ title, subtitle, icon: Icon, fields, action, onFieldChange }: DeviceCardProps) {
+const LAST_BACKUP_NONE = "آخرین بکاپ: ثبت نشده";
+
+function DeviceCard({ title, subtitle, icon: Icon, fields, action, onFieldChange, onAction, probe = null, busy = false }: DeviceCardProps) {
+  const badge = probe && !probe.ok ? "خطا" : "آماده";
   return <section className="settings-device-card" role="region" aria-label={title}>
-    <header><span className="settings-card-icon"><Icon size={22} /></span><div><h2>{title}</h2><p>{subtitle}</p></div><span className="settings-ready"><i />آماده</span></header>
+    <header><span className="settings-card-icon"><Icon size={22} /></span><div><h2>{title}</h2><p>{subtitle}</p></div><span className={probe && !probe.ok ? "settings-disabled" : "settings-ready"}><i />{badge}</span></header>
     <div className="settings-fields">
       {fields.map(([label, value]) => <label key={label}><span>{label}</span><span className="settings-select"><select value={value} onChange={event => onFieldChange?.(label, event.target.value)}><option>{value}</option></select><ChevronDown size={14} /></span></label>)}
     </div>
-    <div className="settings-card-footer"><span><Cable size={15} />وضعیت اتصال: <b>متصل</b></span><button type="button" aria-label={action}>{action}</button></div>
+    <div className="settings-card-footer">
+      <span><Cable size={15} />{probe ? probe.message : <>وضعیت اتصال: <b>متصل</b></>}</span>
+      <button type="button" aria-label={action} disabled={busy} onClick={onAction}>{busy ? "در حال بررسی…" : action}</button>
+    </div>
   </section>;
 }
 
@@ -93,6 +112,84 @@ export function SettingsPage() {
   const [dialogIssues, setDialogIssues] = useState<readonly UserValidationIssue[]>([]);
   const [saving, setSaving] = useState(false);
 
+  const [probes, setProbes] = useState<Readonly<Record<DeviceProbeKind, DeviceProbeOutcome | null>>>({
+    scale: null, printer: null, scanner: null,
+  });
+  const [probing, setProbing] = useState<DeviceProbeKind | null>(null);
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
+  const [backupRunning, setBackupRunning] = useState<"manual" | "restore" | null>(null);
+  const [lastBackupAction, setLastBackupAction] = useState<BackupOutcome | null>(null);
+  const [automaticBackup, setAutomaticBackup] = useState<BackupOutcome | null>(null);
+
+  const probeServiceRef = useRef<ReturnType<typeof createDeviceProbeService> | null>(null);
+  const backupServiceRef = useRef<ReturnType<typeof createBackupService> | null>(null);
+  const backupStateRef = useRef<Promise<BackupStateGateway> | null>(null);
+
+  /** Hardware services are created once per screen, like the settings gateway. */
+  const resolveProbeService = () => (probeServiceRef.current ??= createDeviceProbeService());
+  const resolveBackupService = () => (backupServiceRef.current ??= createBackupService());
+  const resolveBackupState = () => (backupStateRef.current ??= createDefaultBackupStateGateway());
+
+  const probeConfig = () => ({
+    printerName: snapshot.printer.printerName,
+    scalePort: snapshot.scale.port,
+    scaleBaudRate: Number.parseInt(snapshot.scale.baudRate, 10) || 9600,
+    scannerPort: snapshot.scanner.port,
+    scannerBaudRate: 9600,
+  });
+
+  const backupConfig = (backup: BackupSettingsView) => ({
+    enabled: backup.enabled,
+    intervalMinutes: backupIntervalOptions[backup.intervalLabel] ?? 1440,
+    destinationPath: backup.destinationPath,
+  });
+
+  const runProbe = async (kind: DeviceProbeKind) => {
+    setProbing(kind);
+    try {
+      const outcome = await resolveProbeService().probe(kind, probeConfig());
+      setProbes(current => ({ ...current, [kind]: outcome }));
+    } finally {
+      setProbing(null);
+    }
+  };
+
+  const recordBackupCompletion = async (completedAt: string) => {
+    setLastBackupAt(completedAt);
+    try {
+      const state = await resolveBackupState();
+      await state.recordBackupAt(completedAt);
+    } catch {
+      // The backup itself succeeded; only the schedule marker could not be stored.
+    }
+  };
+
+  const runManualBackup = async () => {
+    setBackupRunning("manual");
+    try {
+      const outcome = await resolveBackupService().backup(backupConfig(snapshot.backup));
+      setLastBackupAction(outcome);
+      if (outcome.ok) await recordBackupCompletion(new Date().toISOString());
+    } finally {
+      setBackupRunning(null);
+    }
+  };
+
+  const restoreLatestBackup = async () => {
+    setBackupRunning("restore");
+    try {
+      const files = await resolveBackupService().list(backupConfig(snapshot.backup));
+      if (files.length === 0) {
+        setLastBackupAction({ ok: false, message: "هیچ فایل پشتیبانی در مسیر تعیین‌شده پیدا نشد" });
+        return;
+      }
+      const outcome = await resolveBackupService().restore(files[0]!);
+      setLastBackupAction({ ...outcome, path: files[0] });
+    } finally {
+      setBackupRunning(null);
+    }
+  };
+
   /** One gateway (and therefore one SQLite connection) for load and saves. */
   const resolveGateway = () => {
     if (!gatewayRef.current) gatewayRef.current = createDefaultSettingsGateway();
@@ -118,6 +215,30 @@ export function SettingsPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Automatic backup only runs where a real file system exists (desktop shell). */
+  useEffect(() => {
+    if (status !== "ready" || !isTauriEnvironment()) return;
+    let cancelled = false;
+
+    const run = async () => {
+      const state = await resolveBackupState();
+      const last = await state.loadLastBackupAt();
+      if (cancelled) return;
+      setLastBackupAt(last);
+
+      const outcome = await resolveBackupService().runAutomatic(backupConfig(snapshot.backup), last);
+      if (cancelled || outcome === null) return;
+      setAutomaticBackup(outcome);
+      if (outcome.ok) await recordBackupCompletion(new Date().toISOString());
+    };
+
+    void run().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,7 +368,7 @@ export function SettingsPage() {
   return <main className="settings-page" data-testid="settings-page">
     <header className="settings-heading">
       <div><span className="settings-heading-icon"><ShieldCheck size={31} /></span><div><h1>تنظیمات</h1><p>مدیریت دستگاه‌ها، نسخه‌های پشتیبان و دسترسی کاربران</p></div></div>
-      <p className="settings-ui-note" data-testid="settings-ui-only-note"><CheckCircle2 size={16} />تنظیمات ذخیره می‌شوند؛ وضعیت اتصال دستگاه‌ها نمایشی است</p>
+      <p className="settings-ui-note" data-testid="settings-ui-only-note"><CheckCircle2 size={16} />تنظیمات در پایگاه داده ذخیره می‌شوند؛ تست اتصال دستگاه‌ها واقعی است</p>
     </header>
 
     <section className="settings-devices" aria-label="تنظیمات دستگاه‌ها">
@@ -255,16 +376,19 @@ export function SettingsPage() {
         title="تنظیمات ترازو" subtitle="دریافت وزن از ترازوی دیجیتال" icon={Scale} action="تست اتصال"
         fields={[["مدل ترازو", snapshot.scale.scaleModel], ["پورت اتصال", snapshot.scale.port], ["Baud Rate", snapshot.scale.baudRate]]}
         onFieldChange={(label, value) => updateDeviceField("scale", scaleFieldByLabel, label, value)}
+        onAction={() => void runProbe("scale")} probe={probes.scale} busy={probing === "scale"}
       />
       <DeviceCard
         title="تنظیمات پرینتر" subtitle="چاپ لیبل محصولات و بسته‌ها" icon={Printer} action="تست چاپ"
         fields={[["پرینتر لیبل", snapshot.printer.printerName], ["سایز لیبل", snapshot.printer.labelSize], ["حالت چاپ", snapshot.printer.printMode]]}
         onFieldChange={(label, value) => updateDeviceField("printer", printerFieldByLabel, label, value)}
+        onAction={() => void runProbe("printer")} probe={probes.printer} busy={probing === "printer"}
       />
       <DeviceCard
         title="تنظیمات اسکنر" subtitle="ثبت سریع کد QR و بارکد" icon={ScanLine} action="تست اسکن"
         fields={[["نوع اسکنر", snapshot.scanner.scannerType], ["حالت اسکن", snapshot.scanner.scanMode], ["پورت اتصال", snapshot.scanner.port]]}
         onFieldChange={(label, value) => updateDeviceField("scanner", scannerFieldByLabel, label, value)}
+        onAction={() => void runProbe("scanner")} probe={probes.scanner} busy={probing === "scanner"}
       />
     </section>
 
@@ -275,13 +399,13 @@ export function SettingsPage() {
           <label><span>بازه زمانی</span><span className="settings-select"><select value={snapshot.backup.intervalLabel} onChange={event => updateBackup({ intervalLabel: event.target.value })}><option>{snapshot.backup.intervalLabel}</option></select><ChevronDown size={14} /></span></label>
           <label><span>مسیر ذخیره</span><span className="settings-path"><input dir="ltr" value={snapshot.backup.destinationPath} onChange={event => updateBackup({ destinationPath: event.target.value })} /><FolderOpen size={17} /></span></label>
         </div>
-        <footer><Clock3 size={16} /><span>آخرین بکاپ: امروز، ۱۰:۲۴</span><b>موفق</b></footer>
+        <footer><Clock3 size={16} /><span>{lastBackupAt ? `آخرین بکاپ: ${new Date(lastBackupAt).toLocaleString("fa-IR")}` : LAST_BACKUP_NONE}</span><b>{automaticBackup ? (automaticBackup.ok ? "موفق" : "خطا") : "—"}</b></footer>
       </section>
 
       <section className="settings-manual-card" role="region" aria-label="بکاپ‌گیری دستی">
         <header><span className="settings-card-icon"><HardDriveDownload size={22} /></span><div><h2>بکاپ‌گیری دستی</h2><p>نسخه پشتیبان را به‌صورت دستی مدیریت کنید</p></div></header>
-        <div className="settings-manual-actions"><button type="button" className="settings-primary"><DatabaseBackup size={18} />گرفتن بکاپ</button><button type="button"><HardDriveDownload size={18} />بازیابی بکاپ</button></div>
-        <footer><CheckCircle2 size={16} /><span>آخرین عملیات: بازیابی آزمایشی</span><b>بدون خطا</b></footer>
+        <div className="settings-manual-actions"><button type="button" className="settings-primary" disabled={backupRunning !== null} onClick={() => void runManualBackup()}><DatabaseBackup size={18} />{backupRunning === "manual" ? "در حال پشتیبان‌گیری…" : "گرفتن بکاپ"}</button><button type="button" disabled={backupRunning !== null} onClick={() => void restoreLatestBackup()}><HardDriveDownload size={18} />{backupRunning === "restore" ? "در حال بازیابی…" : "بازیابی بکاپ"}</button></div>
+        <footer><CheckCircle2 size={16} /><span>{lastBackupAction ? lastBackupAction.message : "آخرین عملیات: بدون عملیات"}</span><b>{lastBackupAction ? (lastBackupAction.ok ? "بدون خطا" : "خطا") : "—"}</b></footer>
       </section>
     </section>
 
