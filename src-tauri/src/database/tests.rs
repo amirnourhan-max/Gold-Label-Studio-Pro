@@ -1,4 +1,5 @@
 use rusqlite::{Connection, Error};
+use std::{fs, time::{SystemTime, UNIX_EPOCH}};
 
 use super::INITIAL_SCHEMA_SQL;
 
@@ -138,6 +139,72 @@ fn schema_enforces_integer_milligram_storage() {
         .expect("stored weight should read");
 
     assert_eq!(stored_weight, 4385);
+}
+
+#[test]
+fn completed_return_session_and_totals_survive_database_restart() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time should be after epoch")
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("gold-label-returns-{unique}.db"));
+
+    {
+        let connection = Connection::open(&path).expect("temporary SQLite file should open");
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .expect("foreign keys should be enabled");
+        connection
+            .execute_batch(INITIAL_SCHEMA_SQL)
+            .expect("initial schema should apply");
+        insert_catalog_and_product(&connection);
+        connection.execute(
+            "INSERT INTO return_sessions (id, status, started_at) VALUES ('session-restart', 'open', '2026-09-10T10:00:00.000Z')",
+            [],
+        ).expect("return session should insert");
+        connection.execute(
+            "INSERT INTO return_scans (id, return_session_id, product_id, scanned_code, scan_status, weight_mg_snapshot, scanned_at)
+             VALUES ('scan-accepted', 'session-restart', 'product-1', 'R-001', 'accepted', 4385, '2026-09-10T10:01:00.000Z')",
+            [],
+        ).expect("accepted return should insert");
+        connection.execute(
+            "INSERT INTO return_scans (id, return_session_id, product_id, scanned_code, scan_status, weight_mg_snapshot, scanned_at)
+             VALUES ('scan-duplicate', 'session-restart', 'product-1', 'R-001', 'duplicate', 4385, '2026-09-10T10:02:00.000Z')",
+            [],
+        ).expect("duplicate history should insert");
+        connection.execute(
+            "INSERT INTO return_scans (id, return_session_id, scanned_code, scan_status, scanned_at)
+             VALUES ('scan-rejected', 'session-restart', 'UNKNOWN', 'rejected', '2026-09-10T10:03:00.000Z')",
+            [],
+        ).expect("rejected history should insert");
+        connection.execute(
+            "UPDATE return_sessions SET status = 'completed', ended_at = '2026-09-10T10:04:00.000Z', updated_at = '2026-09-10T10:04:00.000Z'
+             WHERE id = 'session-restart'",
+            [],
+        ).expect("return session should complete");
+    }
+
+    {
+        let connection = Connection::open(&path).expect("SQLite file should reopen");
+        let status: String = connection.query_row(
+            "SELECT status FROM return_sessions WHERE id = 'session-restart'", [], |row| row.get(0),
+        ).expect("completed session should remain persisted");
+        let (items, weight, errors, scans): (i64, i64, i64, i64) = connection.query_row(
+            "SELECT
+               SUM(CASE WHEN scan_status = 'accepted' THEN 1 ELSE 0 END),
+               SUM(CASE WHEN scan_status = 'accepted' THEN weight_mg_snapshot ELSE 0 END),
+               SUM(CASE WHEN scan_status IN ('duplicate', 'rejected') THEN 1 ELSE 0 END),
+               COUNT(*)
+             FROM return_scans WHERE return_session_id = 'session-restart'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        ).expect("return totals should reload after restart");
+
+        assert_eq!(status, "completed");
+        assert_eq!((items, weight, errors, scans), (1, 4385, 2, 3));
+    }
+
+    fs::remove_file(&path).expect("temporary SQLite file should be removed");
 }
 
 #[test]

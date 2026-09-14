@@ -1,6 +1,8 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { OperationsPreviewPage } from "./OperationsPreviewPage";
+import { ReturnsPage } from "./ReturnsPage";
+import type { ReturnWorkflowPort } from "../../services/returns/return-workflow-service";
 
 afterEach(cleanup);
 
@@ -71,5 +73,49 @@ describe("approved returns workspace", () => {
     expect(within(actions).getAllByRole("button").map(button => button.textContent?.trim())).toEqual([
       "شروع", "توقف", "بازگشت آخرین", "پایان جلسه",
     ]);
+  });
+
+  it("loads persisted state and refreshes recent scans after manual entry", async () => {
+    const initial = {
+      session: null,
+      scans: [],
+      summary: { itemCount: 0, totalWeightMg: 0, errorCount: 0, scanCount: 0 },
+    } as const;
+    const accepted = {
+      session: { id: "session-1", status: "open", operatorUserId: null, startedAt: "2026-09-10T10:00:00.000Z", endedAt: null, createdAt: "2026-09-10T10:00:00.000Z", updatedAt: "2026-09-10T10:00:00.000Z" },
+      scans: [{ id: "scan-1", returnSessionId: "session-1", productId: "product-1", scannedCode: "R-001", scanStatus: "accepted", weightMgSnapshot: 4385, scannedAt: "2026-09-10T10:24:31.000Z", createdAt: "2026-09-10T10:24:31.000Z", updatedAt: "2026-09-10T10:24:31.000Z", productName: "انگشتر", productGroupName: "حلقه" }],
+      summary: { itemCount: 1, totalWeightMg: 4385, errorCount: 0, scanCount: 1 },
+    } as const;
+    const workflow: ReturnWorkflowPort = {
+      load: vi.fn().mockResolvedValue(initial),
+      startSession: vi.fn().mockResolvedValue({ ...initial, session: accepted.session }),
+      scan: vi.fn().mockResolvedValue(accepted),
+      stopSession: vi.fn().mockResolvedValue(accepted),
+      completeSession: vi.fn().mockResolvedValue({ ...accepted, session: { ...accepted.session, status: "completed" } }),
+    };
+    render(<ReturnsPage workflow={workflow} />);
+    await waitFor(() => expect(workflow.load).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "شروع" }));
+    await waitFor(() => expect(workflow.startSession).toHaveBeenCalled());
+    const input = screen.getByRole("textbox", { name: "بارکد محصول" });
+    fireEvent.change(input, { target: { value: "R-001" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => expect(workflow.scan).toHaveBeenCalledWith("R-001"));
+    expect(screen.getByRole("table", { name: "آخرین اسکن‌های مرجوع کالا" })).toHaveTextContent("R-001");
+    expect(screen.getAllByText("4.385 g").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "پایان جلسه" }));
+    await waitFor(() => expect(workflow.completeSession).toHaveBeenCalled());
+  });
+
+  it("shows loading and persistence errors without changing the approved layout", async () => {
+    let rejectLoad!: (reason?: unknown) => void;
+    const load = new Promise<never>((_, reject) => { rejectLoad = reject; });
+    const workflow = { load: vi.fn(() => load) } as unknown as ReturnWorkflowPort;
+    render(<ReturnsPage workflow={workflow} />);
+    expect(screen.getByText("در حال بارگذاری اطلاعات جلسه...")).toBeInTheDocument();
+    rejectLoad(new Error("database unavailable"));
+    expect(await screen.findByText("خطا در بارگذاری اطلاعات جلسه")).toBeInTheDocument();
+    expect(screen.getByTestId("returns-page")).toHaveClass("returns-workspace");
   });
 });
