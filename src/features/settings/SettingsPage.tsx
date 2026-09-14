@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Cable, CheckCircle2, ChevronDown, Clock3, DatabaseBackup, FolderOpen,
   HardDriveDownload, KeyRound, Pencil, Plus, Printer, ScanLine, Scale,
@@ -6,12 +6,13 @@ import {
 } from "lucide-react";
 import { displayData } from "../../services";
 import { createDefaultSettingsGateway } from "../../services/settings/settings-gateway";
-import { isSettingsValid } from "../../services/settings/settings-validation";
+import { validateSettings } from "../../services/settings/settings-validation";
 import type {
   BackupSettingsView,
   PrinterSettingsView,
   ScaleSettingsView,
   ScannerSettingsView,
+  SettingsGateway,
   SettingsSnapshot,
 } from "../../services/settings/settings-contract";
 import { approvedSettingsSnapshot } from "../../services/settings/settings-contract";
@@ -20,6 +21,10 @@ import "./settings-page.css";
 const displayUsers = displayData.listUsers();
 
 type SettingsStatus = "loading" | "ready" | "error";
+
+const LOAD_ERROR_MESSAGE = "بارگذاری تنظیمات ذخیره‌شده ناموفق بود؛ مقادیر پیش‌فرض نمایش داده می‌شوند";
+const SAVE_ERROR_MESSAGE = "ذخیره تنظیمات ناموفق بود؛ تغییرات پس از راه‌اندازی مجدد حفظ نمی‌شوند";
+const INVALID_MESSAGE = "تنظیمات وارد شده معتبر نیست و ذخیره نشد";
 
 type DeviceCardProps = {
   title: string;
@@ -53,11 +58,21 @@ const scannerFieldByLabel: Partial<Record<string, keyof ScannerSettingsView>> = 
 export function SettingsPage() {
   const [snapshot, setSnapshot] = useState<SettingsSnapshot>(approvedSettingsSnapshot);
   const [status, setStatus] = useState<SettingsStatus>("loading");
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const gatewayRef = useRef<Promise<SettingsGateway> | null>(null);
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+
+  /** One gateway (and therefore one SQLite connection) for load and saves. */
+  const resolveGateway = () => {
+    if (!gatewayRef.current) gatewayRef.current = createDefaultSettingsGateway();
+    return gatewayRef.current;
+  };
 
   useEffect(() => {
     let cancelled = false;
 
-    createDefaultSettingsGateway()
+    resolveGateway()
       .then(gateway => gateway.loadSettings())
       .then(loaded => {
         if (cancelled) return;
@@ -74,10 +89,19 @@ export function SettingsPage() {
   }, []);
 
   const persist = (next: SettingsSnapshot) => {
-    if (!isSettingsValid(next)) return;
-    createDefaultSettingsGateway()
+    const issues = validateSettings(next);
+    if (issues.length > 0) {
+      setValidationMessage(issues[0]?.message ?? INVALID_MESSAGE);
+      return;
+    }
+    setValidationMessage(null);
+
+    // Saves are chained so rapid edits persist in order instead of racing.
+    saveChainRef.current = saveChainRef.current
+      .then(resolveGateway)
       .then(gateway => gateway.saveSettings(next))
-      .catch(() => {});
+      .then(() => setSaveFailed(false))
+      .catch(() => setSaveFailed(true));
   };
 
   const updateDeviceField = <K extends "scale" | "printer" | "scanner">(
@@ -98,6 +122,10 @@ export function SettingsPage() {
     setSnapshot(next);
     persist(next);
   };
+
+  const notice = status === "error"
+    ? LOAD_ERROR_MESSAGE
+    : validationMessage ?? (saveFailed ? SAVE_ERROR_MESSAGE : null);
 
   return <main className="settings-page" data-testid="settings-page">
     <header className="settings-heading">
@@ -150,6 +178,6 @@ export function SettingsPage() {
       </div>
       <footer><span>۳ کاربر ثبت‌شده</span><span>تغییرات این بخش ذخیره نمی‌شوند</span><button type="button"><Plus size={16} />دعوت از کاربر</button></footer>
     </section>
-    {status === "error" ? <p className="settings-visually-hidden" role="alert">بارگذاری تنظیمات ذخیره‌شده ناموفق بود؛ مقادیر پیش‌فرض نمایش داده می‌شوند</p> : null}
+    {notice ? <p className="settings-visually-hidden" role="alert">{notice}</p> : null}
   </main>;
 }

@@ -1,7 +1,7 @@
 name: React Tauri Dashboard CI
 on:
   push:
-    branches: [react-tauri-dashboard, persistence-foundation]
+    branches: [react-tauri-dashboard, persistence-foundation, settings-persistence-integration]
 
 jobs:
   windows:
