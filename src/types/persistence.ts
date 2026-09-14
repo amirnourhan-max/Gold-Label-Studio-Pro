@@ -194,3 +194,40 @@ export type UpdateLabelTemplateInput = Readonly<{
   isDefault: boolean;
   updatedAt: UtcIsoString;
 }>;
+
+export type DeviceSettingType = "printer" | "scanner" | "scale";
+
+export type DeviceSettingRecord = Readonly<{
+  id: EntityId;
+  deviceType: DeviceSettingType;
+  displayName: string;
+  connectionStatus: "connected" | "disconnected" | "ready" | "error";
+  connectionJson: string;
+} & AuditFields>;
+
+export type PrinterSettingRecord = Readonly<{
+  deviceSettingsId: string | null;
+  printerName: string | null;
+  labelWidthMm: number | null;
+  labelHeightMm: number | null;
+} & AuditFields>;
+
+export type ScannerSettingRecord = Readonly<{
+  deviceSettingsId: string | null;
+  scannerType: string | null;
+  scanMode: string | null;
+} & AuditFields>;
+
+export type ScaleSettingRecord = Readonly<{
+  deviceSettingsId: string | null;
+  scaleModel: string | null;
+  portName: string | null;
+  baudRate: number | null;
+} & AuditFields>;
+
+export type BackupSettingRecord = Readonly<{
+  isEnabled: boolean;
+  intervalMinutes: number;
+  destinationPath: string | null;
+  lastBackupAt: UtcIsoString | null;
+} & AuditFields>;
