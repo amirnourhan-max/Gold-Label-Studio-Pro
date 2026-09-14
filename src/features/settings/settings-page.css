@@ -7,4 +7,3 @@
 @media (max-width: 1180px) { .settings-devices { grid-template-columns: repeat(2, minmax(0, 1fr)); }.settings-backup-grid { grid-template-columns: minmax(0, 1fr); }.settings-backup-card, .settings-manual-card { min-height: 182px; } }
 @media (max-width: 720px) { .settings-heading { align-items: flex-start; gap: 10px; flex-direction: column; }.settings-devices { grid-template-columns: minmax(0, 1fr); }.settings-backup-fields label { grid-template-columns: minmax(0, 1fr); gap: 5px; }.settings-manual-actions { grid-template-columns: minmax(0, 1fr); padding: 12px 0; }.settings-users-heading { align-items: flex-start; gap: 10px; flex-direction: column; }.settings-users-card { min-height: 330px; } }
 
-.settings-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
