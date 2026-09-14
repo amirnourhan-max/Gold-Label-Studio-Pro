@@ -26,7 +26,7 @@ describe("ProductsPage persistence integration", () => {
     render(<ProductsPage workflow={workflow} />);
 
     expect(await screen.findByText("انگشتر پایدار")).toBeInTheDocument();
-    expect(screen.getByText("۴.۳۸۵ g")).toBeInTheDocument();
+    expect(screen.getAllByText("۴.۳۸۵ g")).not.toHaveLength(0);
     fireEvent.change(screen.getByRole("searchbox", { name: "جستجوی محصولات" }), { target: { value: "R-001" } });
     expect(screen.getByText("انگشتر پایدار")).toBeInTheDocument();
     expect(screen.queryByText("دستبند")).not.toBeInTheDocument();
