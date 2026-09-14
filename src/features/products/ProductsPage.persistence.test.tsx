@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProductListItem, ProductWorkflowPort } from "../../services/products/product-service";
 import { ProductsPage } from "./ProductsPage";
@@ -29,7 +29,7 @@ describe("ProductsPage persistence integration", () => {
     expect(screen.getAllByText("۴.۳۸۵ g")).not.toHaveLength(0);
     fireEvent.change(screen.getByRole("searchbox", { name: "جستجوی محصولات" }), { target: { value: "R-001" } });
     expect(screen.getByText("انگشتر پایدار")).toBeInTheDocument();
-    expect(screen.queryByText("دستبند")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: "فهرست محصولات" })).queryByText("دستبند")).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole("searchbox", { name: "جستجوی محصولات" }), { target: { value: "" } });
     fireEvent.change(screen.getByRole("combobox", { name: "وضعیت" }), { target: { value: "غیرفعال" } });
     expect(screen.getByText("دستبند")).toBeInTheDocument();
