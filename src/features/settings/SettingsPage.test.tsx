@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { SettingsPage } from "./SettingsPage";
 
@@ -26,13 +26,13 @@ describe("settings user-interface preview", () => {
     expect(screen.getByRole("button", { name: "بازیابی بکاپ" })).toBeInTheDocument();
   });
 
-  it("shows the user-management table with visual-only management actions", () => {
+  it("shows the user-management table with visual-only management actions", async () => {
     render(<SettingsPage />);
 
     const users = screen.getByRole("region", { name: "مدیریت کاربران" });
     expect(within(users).getByRole("table", { name: "فهرست کاربران" })).toBeInTheDocument();
     expect(within(users).getByRole("button", { name: "افزودن کاربر" })).toBeInTheDocument();
-    expect(within(users).getByRole("button", { name: "تعویض رمز ادمین" })).toBeInTheDocument();
+    await waitFor(() => expect(within(users).getByRole("button", { name: "تعویض رمز ادمین" })).toBeInTheDocument());
     expect(screen.getByTestId("settings-ui-only-note")).toHaveTextContent("صرفاً نمایشی");
   });
 });

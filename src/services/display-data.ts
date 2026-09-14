@@ -1,7 +1,6 @@
 import {
   dashboardFixture,
   dashboardDeviceStatus,
-  displayUsers,
   initialCategories,
   initialFields,
   initialMakers,
@@ -28,5 +27,4 @@ export const displayData = {
   listLabelPrintQueue: () => labelPrintQueue,
   listLabelDesignerTemplates: () => labelDesignerTemplates,
   listReturnScans: () => returnScans,
-  listUsers: () => displayUsers,
 } as const;

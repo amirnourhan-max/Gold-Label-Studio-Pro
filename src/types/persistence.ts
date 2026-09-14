@@ -162,3 +162,19 @@ export type CreateUserInput = Readonly<{
   passwordVersion: number | null;
   createdAt: UtcIsoString;
 }>;
+
+export type UpdateUserInput = Readonly<{
+  id: UserId;
+  displayName: string;
+  username: string;
+  role: UserRole;
+  updatedAt: UtcIsoString;
+}>;
+
+export type UserPasswordInput = Readonly<{
+  id: UserId;
+  passwordHash: string;
+  passwordAlgorithm: string;
+  passwordVersion: number;
+  updatedAt: UtcIsoString;
+}>;
