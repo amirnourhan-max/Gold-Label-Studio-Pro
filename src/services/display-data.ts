@@ -9,7 +9,6 @@ import {
   labelDesignerTemplates,
   labelPrintQueue,
   labelPrintTemplates,
-  packageItems,
   productRows,
   returnScans,
 } from "../data/mock";
@@ -23,7 +22,6 @@ export const displayData = {
   listDashboardDevices: () => dashboardDeviceStatus,
   listProducts: () => productRows,
   getProductRegistration: () => ({ initialCategories, initialFields, initialMakers, previewNotice }),
-  listPackageItems: () => packageItems,
   listLabelPrintTemplates: () => labelPrintTemplates,
   listLabelPrintQueue: () => labelPrintQueue,
   listLabelDesignerTemplates: () => labelDesignerTemplates,
