@@ -1,32 +1,104 @@
+import { useEffect, useState } from "react";
 import {
   Cable, CheckCircle2, ChevronDown, Clock3, DatabaseBackup, FolderOpen,
   HardDriveDownload, KeyRound, Pencil, Plus, Printer, ScanLine, Scale,
   ShieldCheck, Trash2, UserPlus, UsersRound,
 } from "lucide-react";
 import { displayData } from "../../services";
+import { createDefaultSettingsGateway } from "../../services/settings/settings-gateway";
+import { isSettingsValid } from "../../services/settings/settings-validation";
+import type {
+  BackupSettingsView,
+  PrinterSettingsView,
+  ScaleSettingsView,
+  ScannerSettingsView,
+  SettingsSnapshot,
+} from "../../services/settings/settings-contract";
+import { approvedSettingsSnapshot } from "../../services/settings/settings-contract";
 import "./settings-page.css";
 
 const displayUsers = displayData.listUsers();
+
+type SettingsStatus = "loading" | "ready" | "error";
 
 type DeviceCardProps = {
   title: string;
   subtitle: string;
   icon: typeof Scale;
-  fields: readonly [string, string][];
+  fields: readonly (readonly [string, string])[];
   action: string;
+  onFieldChange?: (label: string, value: string) => void;
 };
 
-function DeviceCard({ title, subtitle, icon: Icon, fields, action }: DeviceCardProps) {
+function DeviceCard({ title, subtitle, icon: Icon, fields, action, onFieldChange }: DeviceCardProps) {
   return <section className="settings-device-card" role="region" aria-label={title}>
     <header><span className="settings-card-icon"><Icon size={22} /></span><div><h2>{title}</h2><p>{subtitle}</p></div><span className="settings-ready"><i />آماده</span></header>
     <div className="settings-fields">
-      {fields.map(([label, value]) => <label key={label}><span>{label}</span><span className="settings-select"><select defaultValue={value}><option>{value}</option></select><ChevronDown size={14} /></span></label>)}
+      {fields.map(([label, value]) => <label key={label}><span>{label}</span><span className="settings-select"><select value={value} onChange={event => onFieldChange?.(label, event.target.value)}><option>{value}</option></select><ChevronDown size={14} /></span></label>)}
     </div>
     <div className="settings-card-footer"><span><Cable size={15} />وضعیت اتصال: <b>متصل</b></span><button type="button" aria-label={action}>{action}</button></div>
   </section>;
 }
 
+const scaleFieldByLabel: Partial<Record<string, keyof ScaleSettingsView>> = {
+  "مدل ترازو": "scaleModel", "پورت اتصال": "port", "Baud Rate": "baudRate",
+};
+const printerFieldByLabel: Partial<Record<string, keyof PrinterSettingsView>> = {
+  "پرینتر لیبل": "printerName", "سایز لیبل": "labelSize", "حالت چاپ": "printMode",
+};
+const scannerFieldByLabel: Partial<Record<string, keyof ScannerSettingsView>> = {
+  "نوع اسکنر": "scannerType", "حالت اسکن": "scanMode", "پورت اتصال": "port",
+};
+
 export function SettingsPage() {
+  const [snapshot, setSnapshot] = useState<SettingsSnapshot>(approvedSettingsSnapshot);
+  const [status, setStatus] = useState<SettingsStatus>("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    createDefaultSettingsGateway()
+      .then(gateway => gateway.loadSettings())
+      .then(loaded => {
+        if (cancelled) return;
+        setSnapshot(loaded);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const persist = (next: SettingsSnapshot) => {
+    if (!isSettingsValid(next)) return;
+    createDefaultSettingsGateway()
+      .then(gateway => gateway.saveSettings(next))
+      .catch(() => {});
+  };
+
+  const updateDeviceField = <K extends "scale" | "printer" | "scanner">(
+    device: K,
+    labelByField: Partial<Record<string, keyof SettingsSnapshot[K]>>,
+    label: string,
+    value: string,
+  ) => {
+    const field = labelByField[label];
+    if (!field) return;
+    const next: SettingsSnapshot = { ...snapshot, [device]: { ...snapshot[device], [field]: value } };
+    setSnapshot(next);
+    persist(next);
+  };
+
+  const updateBackup = (patch: Partial<BackupSettingsView>) => {
+    const next: SettingsSnapshot = { ...snapshot, backup: { ...snapshot.backup, ...patch } };
+    setSnapshot(next);
+    persist(next);
+  };
+
   return <main className="settings-page" data-testid="settings-page">
     <header className="settings-heading">
       <div><span className="settings-heading-icon"><ShieldCheck size={31} /></span><div><h1>تنظیمات</h1><p>مدیریت دستگاه‌ها، نسخه‌های پشتیبان و دسترسی کاربران</p></div></div>
@@ -34,17 +106,29 @@ export function SettingsPage() {
     </header>
 
     <section className="settings-devices" aria-label="تنظیمات دستگاه‌ها">
-      <DeviceCard title="تنظیمات ترازو" subtitle="دریافت وزن از ترازوی دیجیتال" icon={Scale} action="تست اتصال" fields={[["مدل ترازو", "A&D GX-3002A"], ["پورت اتصال", "COM3"], ["Baud Rate", "9600"]]} />
-      <DeviceCard title="تنظیمات پرینتر" subtitle="چاپ لیبل محصولات و بسته‌ها" icon={Printer} action="تست چاپ" fields={[["پرینتر لیبل", "Zebra ZD421"], ["سایز لیبل", "50 × 30 mm"], ["حالت چاپ", "حرارتی مستقیم"]]} />
-      <DeviceCard title="تنظیمات اسکنر" subtitle="ثبت سریع کد QR و بارکد" icon={ScanLine} action="تست اسکن" fields={[["نوع اسکنر", "QR / Barcode"], ["حالت اسکن", "افزودن خودکار"], ["پورت اتصال", "USB HID"]]} />
+      <DeviceCard
+        title="تنظیمات ترازو" subtitle="دریافت وزن از ترازوی دیجیتال" icon={Scale} action="تست اتصال"
+        fields={[["مدل ترازو", snapshot.scale.scaleModel], ["پورت اتصال", snapshot.scale.port], ["Baud Rate", snapshot.scale.baudRate]]}
+        onFieldChange={(label, value) => updateDeviceField("scale", scaleFieldByLabel, label, value)}
+      />
+      <DeviceCard
+        title="تنظیمات پرینتر" subtitle="چاپ لیبل محصولات و بسته‌ها" icon={Printer} action="تست چاپ"
+        fields={[["پرینتر لیبل", snapshot.printer.printerName], ["سایز لیبل", snapshot.printer.labelSize], ["حالت چاپ", snapshot.printer.printMode]]}
+        onFieldChange={(label, value) => updateDeviceField("printer", printerFieldByLabel, label, value)}
+      />
+      <DeviceCard
+        title="تنظیمات اسکنر" subtitle="ثبت سریع کد QR و بارکد" icon={ScanLine} action="تست اسکن"
+        fields={[["نوع اسکنر", snapshot.scanner.scannerType], ["حالت اسکن", snapshot.scanner.scanMode], ["پورت اتصال", snapshot.scanner.port]]}
+        onFieldChange={(label, value) => updateDeviceField("scanner", scannerFieldByLabel, label, value)}
+      />
     </section>
 
     <section className="settings-backup-grid" aria-label="تنظیمات پشتیبان‌گیری">
       <section className="settings-backup-card" role="region" aria-label="بکاپ‌گیری اتوماتیک">
-        <header><span className="settings-card-icon"><DatabaseBackup size={22} /></span><div><h2>بکاپ‌گیری اتوماتیک</h2><p>محافظت زمان‌بندی‌شده از اطلاعات برنامه</p></div><button type="button" className="settings-switch" role="switch" aria-label="فعال‌سازی بکاپ خودکار" aria-checked="true"><i /></button></header>
+        <header><span className="settings-card-icon"><DatabaseBackup size={22} /></span><div><h2>بکاپ‌گیری اتوماتیک</h2><p>محافظت زمان‌بندی‌شده از اطلاعات برنامه</p></div><button type="button" className="settings-switch" role="switch" aria-label="فعال‌سازی بکاپ خودکار" aria-checked={snapshot.backup.enabled} onClick={() => updateBackup({ enabled: !snapshot.backup.enabled })}><i /></button></header>
         <div className="settings-backup-fields">
-          <label><span>بازه زمانی</span><span className="settings-select"><select defaultValue="هر روز ساعت ۲۳:۰۰"><option>هر روز ساعت ۲۳:۰۰</option></select><ChevronDown size={14} /></span></label>
-          <label><span>مسیر ذخیره</span><span className="settings-path"><input dir="ltr" readOnly value="D:\\GoldLabel\\Backups" /><FolderOpen size={17} /></span></label>
+          <label><span>بازه زمانی</span><span className="settings-select"><select value={snapshot.backup.intervalLabel} onChange={event => updateBackup({ intervalLabel: event.target.value })}><option>{snapshot.backup.intervalLabel}</option></select><ChevronDown size={14} /></span></label>
+          <label><span>مسیر ذخیره</span><span className="settings-path"><input dir="ltr" value={snapshot.backup.destinationPath} onChange={event => updateBackup({ destinationPath: event.target.value })} /><FolderOpen size={17} /></span></label>
         </div>
         <footer><Clock3 size={16} /><span>آخرین بکاپ: امروز، ۱۰:۲۴</span><b>موفق</b></footer>
       </section>
@@ -66,5 +150,6 @@ export function SettingsPage() {
       </div>
       <footer><span>۳ کاربر ثبت‌شده</span><span>تغییرات این بخش ذخیره نمی‌شوند</span><button type="button"><Plus size={16} />دعوت از کاربر</button></footer>
     </section>
+    {status === "error" ? <p className="settings-visually-hidden" role="alert">بارگذاری تنظیمات ذخیره‌شده ناموفق بود؛ مقادیر پیش‌فرض نمایش داده می‌شوند</p> : null}
   </main>;
 }

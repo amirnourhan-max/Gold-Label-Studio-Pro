@@ -1,11 +1,19 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { SettingsPage } from "./SettingsPage";
 
 afterEach(cleanup);
 
+const expectScaleCardValues = async (model: string, port: string, baud: string) => {
+  const scaleCard = screen.getByRole("region", { name: "تنظیمات ترازو" });
+  await waitFor(() => {
+    const values = within(scaleCard).getAllByRole("combobox").map(select => (select as HTMLSelectElement).value);
+    expect(values).toEqual([model, port, baud]);
+  });
+};
+
 describe("settings user-interface preview", () => {
-  it("renders the three display-only device configuration cards", () => {
+  it("renders the three display-only device configuration cards", async () => {
     render(<SettingsPage />);
 
     for (const title of ["تنظیمات ترازو", "تنظیمات پرینتر", "تنظیمات اسکنر"]) {
@@ -14,13 +22,15 @@ describe("settings user-interface preview", () => {
     expect(screen.getAllByRole("button", { name: "تست اتصال" })).toHaveLength(1);
     expect(screen.getByRole("button", { name: "تست چاپ" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "تست اسکن" })).toBeInTheDocument();
+    await expectScaleCardValues("A&D GX-3002A", "COM3", "9600");
   });
 
-  it("keeps automatic and manual backup controls visible as UI-only previews", () => {
+  it("keeps automatic and manual backup controls visible as UI-only previews", async () => {
     render(<SettingsPage />);
 
     const autoBackup = screen.getByRole("region", { name: "بکاپ‌گیری اتوماتیک" });
-    expect(within(autoBackup).getByRole("switch", { name: "فعال‌سازی بکاپ خودکار" })).toBeInTheDocument();
+    const backupSwitch = within(autoBackup).getByRole("switch", { name: "فعال‌سازی بکاپ خودکار" });
+    await waitFor(() => expect(backupSwitch).toHaveAttribute("aria-checked", "true"));
     expect(within(autoBackup).getByText("آخرین بکاپ: امروز، ۱۰:۲۴")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "گرفتن بکاپ" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "بازیابی بکاپ" })).toBeInTheDocument();
