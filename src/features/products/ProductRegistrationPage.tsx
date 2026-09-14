@@ -6,6 +6,8 @@ import type { EntityId } from "../../types/persistence";
 import { displayData } from "../../services";
 import { buildRegistrationCatalog, type RegistrationGroupOption } from "./catalog-form-service";
 import { validateProductForm, type ProductFormValidationIssue } from "./product-form-validation";
+import { productWorkflow } from "../../services/products/product-runtime";
+import type { ProductWorkflowPort } from "../../services/products/product-service";
 import "./product-registration.css";
 
 const { initialFields, previewNotice } = displayData.getProductRegistration();
@@ -25,7 +27,7 @@ const defaultCategoryFor = (group: DefaultCategorySource | undefined) => {
 
 type CatalogFeedback = Readonly<{ tone: "error" | "empty" | "info"; text: string }> | null;
 
-export function ProductRegistrationPage() {
+export function ProductRegistrationPage({ workflow = productWorkflow }: { workflow?: ProductWorkflowPort } = {}) {
   const catalogGateway: CatalogGateway = createDefaultCatalogGateway();
   const [catalog, setCatalog] = useState<CatalogEntry | null>(catalogGateway.peekCatalog?.() ?? null);
   const [catalogStatus, setCatalogStatus] = useState<"loading" | "ready" | "error">(catalog ? "ready" : "loading");
@@ -38,6 +40,7 @@ export function ProductRegistrationPage() {
   const [inInventory, setInInventory] = useState(true);
   const [notice, setNotice] = useState(previewNotice);
   const [issues, setIssues] = useState<readonly ProductFormValidationIssue[]>([]);
+  const [saving, setSaving] = useState(false);
   const [groupEditorOpen, setGroupEditorOpen] = useState(false);
   const [groupDraft, setGroupDraft] = useState("");
   const [makerEditorOpen, setMakerEditorOpen] = useState(false);
@@ -166,6 +169,32 @@ export function ProductRegistrationPage() {
 
   const groupImageFor = (group: RegistrationGroupOption) => group.image ?? categoryAssets[0];
 
+  const saveProduct = async (action: "ثبت" | "چاپ و ثبت") => {
+    setSaving(true);
+    try {
+      const result = await workflow.create({
+        name: fields.name,
+        code: fields.code,
+        weightGramText: fields.weight,
+        stoneWeightGramText: fields.manualWeight,
+        purity: fields.purity,
+        size: fields.size,
+        quantity: fields.quantity,
+        imagePath: imagePreview,
+        note: fields.note,
+        inInventory,
+        productGroupId: (selectedGroup?.id ?? null) as EntityId | null,
+        mainCategoryId: (selectedCategory?.id ?? null) as EntityId | null,
+        workshopId: (workshops.find(workshop => workshop.name === fields.maker)?.id ?? null) as EntityId | null,
+      });
+      setNotice(result.persisted ? `${action} محصول با موفقیت انجام شد.` : `${action} — ${previewNotice}`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "ثبت محصول انجام نشد.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <main className="product-registration" data-testid="product-registration-page">
       <div className="registration-main">
@@ -260,8 +289,8 @@ export function ProductRegistrationPage() {
           </div>
           <div className="registration-actions" role="group" aria-label="عملیات محصول">
             <button type="button" className="registration-print" onClick={() => submitAction(() => setNotice(`چاپ — ${previewNotice}`))}>چاپ<Printer size={23} /></button>
-            <button type="button" className="registration-save" onClick={() => submitAction(() => setNotice(`ثبت — ${previewNotice}`))}>ثبت<Save size={22} /></button>
-            <button type="button" className="registration-print-save" onClick={() => submitAction(() => setNotice(`چاپ و ثبت — ${previewNotice}`))}>چاپ و ثبت<PrinterCheck size={24} /></button>
+            <button type="button" className="registration-save" disabled={saving} onClick={() => submitAction(() => void saveProduct("ثبت"))}>ثبت<Save size={22} /></button>
+            <button type="button" className="registration-print-save" disabled={saving} onClick={() => submitAction(() => void saveProduct("چاپ و ثبت"))}>چاپ و ثبت<PrinterCheck size={24} /></button>
             <button type="button" className="registration-clear" onClick={clearForm}>پاک کردن فرم<Undo2 size={19} /></button>
           </div>
           {issues.length > 0 && <p className="registration-preview-notice" role="alert">{issues.map(issue => issue.message).join(" • ")}</p>}

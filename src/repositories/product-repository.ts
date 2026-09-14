@@ -1,18 +1,43 @@
 import type { CreateProductInput, ProductRecord, UtcIsoString } from "../types/persistence";
 import type { SqlClient } from "../services/database/sql-client";
 
+export type ProductListRecord = ProductRecord & Readonly<{
+  productGroupName: string | null;
+  mainCategoryName: string | null;
+}>;
+
+const productColumns = `
+  p.id, p.product_code AS productCode, p.name, p.product_group_id AS productGroupId,
+  p.main_category_id AS mainCategoryId, p.workshop_id AS workshopId,
+  p.label_template_id AS labelTemplateId, p.purity_per_mille AS purityPerMille,
+  p.weight_mg AS weightMg, p.stone_weight_mg AS stoneWeightMg, p.size, p.quantity,
+  p.image_path AS imagePath, p.note, p.status, p.created_at AS createdAt,
+  p.updated_at AS updatedAt, p.deleted_at AS deletedAt`;
+
 export class ProductRepository {
   constructor(private readonly client: SqlClient) {}
 
   listActive(): Promise<readonly ProductRecord[]> {
     return this.client.select<ProductRecord>(
-      "SELECT * FROM products WHERE deleted_at IS NULL ORDER BY created_at DESC, product_code",
+      `SELECT ${productColumns} FROM products p
+       WHERE p.deleted_at IS NULL ORDER BY p.created_at DESC, p.product_code`,
+    );
+  }
+
+  listActiveWithCatalog(): Promise<readonly ProductListRecord[]> {
+    return this.client.select<ProductListRecord>(
+      `SELECT ${productColumns}, pg.name AS productGroupName, mc.name AS mainCategoryName
+       FROM products p
+       LEFT JOIN product_groups pg ON pg.id = p.product_group_id
+       LEFT JOIN main_categories mc ON mc.id = p.main_category_id
+       WHERE p.deleted_at IS NULL ORDER BY p.created_at DESC, p.product_code`,
     );
   }
 
   findActiveByCode(productCode: string): Promise<readonly ProductRecord[]> {
     return this.client.select<ProductRecord>(
-      "SELECT * FROM products WHERE product_code = ? AND deleted_at IS NULL LIMIT 1",
+      `SELECT ${productColumns} FROM products p
+       WHERE p.product_code = ? AND p.deleted_at IS NULL LIMIT 1`,
       [productCode],
     );
   }
