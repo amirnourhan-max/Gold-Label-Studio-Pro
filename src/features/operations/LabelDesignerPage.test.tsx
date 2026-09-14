@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { LabelDesignerPage } from "./LabelDesignerPage";
 
@@ -16,14 +16,14 @@ describe("approved label designer", () => {
     expect(screen.getByRole("region", { name: "قالب‌های ذخیره‌شده" })).toBeInTheDocument();
   });
 
-  it("uses the approved full jewelry label and exposes the reference tools", () => {
+  it("uses the approved full jewelry label and exposes the reference tools", async () => {
     render(<LabelDesignerPage />);
     expect(screen.getByAltText("لیبل انگشتر طرح گل")).toHaveAttribute("src", expect.stringContaining("designer-full-label.webp"));
     const tools = screen.getByRole("toolbar", { name: "فهرست ابزارهای طراحی" });
     expect(within(tools).getAllByRole("button").map(button => button.textContent?.trim())).toEqual([
       "انتخاب", "متن", "کد QR", "تصویر", "خط", "شکل", "جدول", "متغیر",
     ]);
-    expect(screen.getAllByRole("img", { name: /قالب/ })).toHaveLength(6);
+    await waitFor(() => expect(screen.getAllByRole("img", { name: /قالب/ })).toHaveLength(6));
   });
 
   it("keeps view controls separate from the complete left-side tool list", () => {
@@ -35,11 +35,11 @@ describe("approved label designer", () => {
     expect(within(viewSettings).getByText("قفل راهنماها")).toBeInTheDocument();
   });
 
-  it("shows all six saved templates as complete selectable cards", () => {
+  it("shows all six saved templates as complete selectable cards", async () => {
     render(<LabelDesignerPage />);
 
-    const templates = screen.getByRole("list", { name: "قالب‌های ذخیره‌شده" });
-    expect(within(templates).getAllByRole("listitem")).toHaveLength(6);
+    const templates = await screen.findByRole("list", { name: "قالب‌های ذخیره‌شده" });
+    await waitFor(() => expect(within(templates).getAllByRole("listitem")).toHaveLength(6));
     expect(within(templates).getAllByRole("img").map(image => image.getAttribute("alt"))).toEqual([
       "قالب انگشتر", "قالب دستبند", "قالب گردنبند", "قالب سرویس", "قالب پلاک", "قالب گوشواره",
     ]);
@@ -56,5 +56,18 @@ describe("approved label designer", () => {
     expect(within(propertyScroll).getByText("ظاهر")).toBeInTheDocument();
     expect(within(propertyScroll).queryByRole("button", { name: "حذف عنصر" })).not.toBeInTheDocument();
     expect(within(properties).getByRole("button", { name: "حذف عنصر" })).toBeInTheDocument();
+  });
+
+  it("reveals rename and delete controls only while template management is active", async () => {
+    render(<LabelDesignerPage />);
+
+    const templates = await screen.findByRole("list", { name: "قالب‌های ذخیره‌شده" });
+    await waitFor(() => expect(within(templates).getAllByRole("listitem")).toHaveLength(6));
+    expect(within(templates).queryByRole("button", { name: /حذف قالب/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "مدیریت قالب‌ها" }));
+
+    expect(within(templates).getByRole("button", { name: "حذف قالب انگشتر" })).toBeInTheDocument();
+    expect(within(templates).getByRole("button", { name: "تغییر نام قالب انگشتر" })).toBeInTheDocument();
   });
 });

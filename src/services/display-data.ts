@@ -4,7 +4,6 @@ import {
   displayUsers,
   initialFields,
   previewNotice,
-  labelDesignerTemplates,
   labelPrintQueue,
   labelPrintTemplates,
   packageItems,
@@ -25,7 +24,6 @@ export const displayData = {
   listPackageItems: () => packageItems,
   listLabelPrintTemplates: () => labelPrintTemplates,
   listLabelPrintQueue: () => labelPrintQueue,
-  listLabelDesignerTemplates: () => labelDesignerTemplates,
   listReturnScans: () => returnScans,
   listUsers: () => displayUsers,
 } as const;

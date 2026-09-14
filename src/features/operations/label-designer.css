@@ -100,3 +100,8 @@
   .label-properties-scroll { gap: 4px; }
   .label-properties section { padding: 5px 7px; gap: 4px; }
 }
+
+.label-templates-empty { margin: 0; padding: 6px 8px; grid-column: 1 / -1; font-size: 12px; color: #bfcbd4; text-align: right; }
+.label-template-manage { display: flex; justify-content: center; gap: 5px; }
+.label-template-manage button { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 20px; border: 1px solid #304655; border-radius: 5px; background: #112330; color: #bfcbd4; }
+.label-template-manage button:hover { border-color: #d2a03f; color: #e0e6ea; }

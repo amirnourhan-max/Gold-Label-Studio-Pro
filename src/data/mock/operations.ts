@@ -16,8 +16,6 @@ export const labelPrintQueue: readonly LabelPrintQueueItem[] = [
   ["B-250904-00132", "دستبند کارتیه", "۳", "در صف", "waiting"],
 ];
 
-export const labelDesignerTemplates = ["انگشتر", "دستبند", "گردنبند", "سرویس", "پلاک", "گوشواره"] as const;
-
 export const returnScans: readonly ReturnScan[] = [
   ["۱", "10:24:31", "R-250904-00125", "انگشتر طرح گل", "انگشتر", "4.385 g", "موفق"],
   ["۲", "10:23:47", "R-250904-00124", "دستبند کارتیه", "دستبند", "8.340 g", "موفق"],

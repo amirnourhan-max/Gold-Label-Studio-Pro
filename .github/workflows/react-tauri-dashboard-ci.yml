@@ -7,6 +7,12 @@ on:
         persistence-foundation,
         catalog-form-integration,
         product-repository-integration,
+        label-template-integration,
+        packaging-persistence-integration,
+        returns-persistence-integration,
+        settings-persistence-integration,
+        users-auth-integration,
+        feature-integration-v1,
       ]
 
 jobs:
