@@ -2,9 +2,7 @@ import {
   dashboardFixture,
   dashboardDeviceStatus,
   displayUsers,
-  initialCategories,
   initialFields,
-  initialMakers,
   previewNotice,
   labelDesignerTemplates,
   labelPrintQueue,
@@ -15,14 +13,15 @@ import {
 } from "../data/mock";
 
 /**
- * Read-only boundary for the approved UI preview. Repositories that connect
- * to devices or persistence can replace these methods in the next phase.
+ * Read-only boundary for the approved UI preview. Catalog data now flows
+ * through the catalog gateway; these mocks cover the remaining preview
+ * features outside the catalog scope.
  */
 export const displayData = {
   getDashboard: () => dashboardFixture,
   listDashboardDevices: () => dashboardDeviceStatus,
   listProducts: () => productRows,
-  getProductRegistration: () => ({ initialCategories, initialFields, initialMakers, previewNotice }),
+  getProductRegistration: () => ({ initialFields, previewNotice }),
   listPackageItems: () => packageItems,
   listLabelPrintTemplates: () => labelPrintTemplates,
   listLabelPrintQueue: () => labelPrintQueue,

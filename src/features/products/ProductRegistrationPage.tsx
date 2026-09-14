@@ -1,26 +1,80 @@
 import { ArrowUp, Check, ChevronDown, ChevronRight, ChevronsDown, Crosshair, Database, Home, ImagePlus, Plus, Printer, PrinterCheck, Save, ScanBarcode, Scale, Trash2, Undo2, X } from "lucide-react";
-import { ChangeEvent, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { categoryAssets, referenceAssets } from "../../assets/reference";
+import { createDefaultCatalogGateway, type CatalogEntry, type CatalogGateway } from "../../services/catalog/catalog-gateway";
+import type { EntityId } from "../../types/persistence";
 import { displayData } from "../../services";
+import { buildRegistrationCatalog, type RegistrationGroupOption } from "./catalog-form-service";
+import { validateProductForm, type ProductFormValidationIssue } from "./product-form-validation";
 import "./product-registration.css";
 
-const { initialCategories, initialFields, initialMakers, previewNotice } = displayData.getProductRegistration();
+const { initialFields, previewNotice } = displayData.getProductRegistration();
+
+/** The approved preview opens the form with this subcategory preselected. */
+const approvedDefaultCategoryName = "انگشتر زنانه";
+
+type DefaultCategorySource = Readonly<{
+  children?: readonly { id: string; name: string }[];
+  categories?: readonly { id: string; name: string }[];
+}>;
+
+const defaultCategoryFor = (group: DefaultCategorySource | undefined) => {
+  const children = group?.children ?? group?.categories ?? [];
+  return children.find(category => category.name === approvedDefaultCategoryName) ?? children[0];
+};
+
+type CatalogFeedback = Readonly<{ tone: "error" | "empty" | "info"; text: string }> | null;
 
 export function ProductRegistrationPage() {
-  const [categories, setCategories] = useState(initialCategories);
-  const [categoryIndex, setCategoryIndex] = useState(0);
-  const [expandedCategory, setExpandedCategory] = useState<number | null>(0);
-  const [subcategory, setSubcategory] = useState("انگشتر زنانه");
+  const catalogGateway: CatalogGateway = createDefaultCatalogGateway();
+  const [catalog, setCatalog] = useState<CatalogEntry | null>(catalogGateway.peekCatalog?.() ?? null);
+  const [catalogStatus, setCatalogStatus] = useState<"loading" | "ready" | "error">(catalog ? "ready" : "loading");
+  const [catalogFeedback, setCatalogFeedback] = useState<CatalogFeedback>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(catalog?.groups[0]?.id ?? null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(catalog?.groups[0]?.id ?? null);
   const [fields, setFields] = useState(initialFields);
   const [imagePreview, setImagePreview] = useState<string | null>(referenceAssets.productRegistrationRing);
   const [inInventory, setInInventory] = useState(true);
   const [notice, setNotice] = useState(previewNotice);
+  const [issues, setIssues] = useState<readonly ProductFormValidationIssue[]>([]);
   const [groupEditorOpen, setGroupEditorOpen] = useState(false);
   const [groupDraft, setGroupDraft] = useState("");
-  const [makers, setMakers] = useState(initialMakers);
   const [makerEditorOpen, setMakerEditorOpen] = useState(false);
   const [makerDraft, setMakerDraft] = useState("");
   const imageInput = useRef<HTMLInputElement>(null);
+
+  const groups = catalog === null ? [] : buildRegistrationCatalog(catalog).groups;
+  const workshops = catalog?.workshops ?? [];
+  const selectedGroup: RegistrationGroupOption | undefined = groups.find(group => group.id === selectedGroupId) ?? groups[0];
+  const selectedCategory = selectedGroup?.children.find(category => category.id === selectedCategoryId) ?? defaultCategoryFor(selectedGroup);
+
+  const refreshCatalog = (selectGroupId?: string, selectCategoryId?: string) => {
+    setCatalogStatus("loading");
+    catalogGateway
+      .loadCatalog()
+      .then(entry => {
+        setCatalog(entry);
+        setCatalogStatus("ready");
+        setCatalogFeedback(entry.groups.length === 0 && entry.workshops.length === 0 ? { tone: "empty", text: "هیچ گروه یا کارگاهی ثبت نشده است" } : null);
+        const nextGroup = selectGroupId !== undefined && entry.groups.some(group => group.id === selectGroupId)
+          ? selectGroupId
+          : entry.groups[0]?.id ?? null;
+        setSelectedGroupId(nextGroup);
+        setExpandedGroupId(current => (current === null ? nextGroup : current));
+        const nextGroupEntry = entry.groups.find(group => group.id === nextGroup);
+        setSelectedCategoryId(selectCategoryId ?? defaultCategoryFor(nextGroupEntry)?.id ?? null);
+      })
+      .catch(() => {
+        setCatalogStatus("error");
+        setCatalogFeedback({ tone: "error", text: "خواندن کاتالوگ ناموفق بود" });
+      });
+  };
+
+  useEffect(() => {
+    if (catalogStatus === "loading" && catalog === null) refreshCatalog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateField = (name: keyof typeof initialFields, value: string) => setFields(current => ({ ...current, [name]: value }));
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -34,48 +88,83 @@ export function ProductRegistrationPage() {
     setImagePreview(null);
     if (imageInput.current) imageInput.current.value = "";
   };
-  const addCategory = () => {
+  const selectGroup = (group: RegistrationGroupOption) => {
+    setSelectedGroupId(group.id);
+    setSelectedCategoryId(defaultCategoryFor(group)?.id ?? null);
+  };
+  const addGroup = () => {
     const name = groupDraft.trim();
-    if (!name || categories.some(category => category.name === name)) return;
-    const next = { name, image: categoryAssets[0], children: ["دسته جدید"] };
-    setCategories(current => [...current, next]);
-    setCategoryIndex(categories.length);
-    setExpandedCategory(categories.length);
-    setSubcategory(next.children[0]);
-    setGroupDraft("");
-    setGroupEditorOpen(false);
+    if (!name) return;
+    catalogGateway
+      .addGroup(name)
+      .then(newGroupId => {
+        setGroupDraft("");
+        setGroupEditorOpen(false);
+        refreshCatalog(newGroupId);
+      })
+      .catch(() => setCatalogFeedback({ tone: "error", text: "افزودن گروه ناموفق بود" }));
   };
-  const removeCategory = () => {
-    if (categories.length === 1) return;
-    const next = categories.filter((_, index) => index !== categoryIndex);
-    setCategories(next);
-    setCategoryIndex(0);
-    setExpandedCategory(0);
-    setSubcategory(next[0].children[0]);
+  const removeGroup = () => {
+    if (selectedGroup === undefined || groups.length === 1) return;
+    catalogGateway
+      .removeGroup(selectedGroup.id as EntityId)
+      .then(() => refreshCatalog())
+      .catch(() => setCatalogFeedback({ tone: "error", text: "حذف گروه ناموفق بود" }));
   };
-  const addMaker = () => {
+  const addWorkshop = () => {
     const name = makerDraft.trim();
-    if (!name || makers.includes(name)) return;
-    setMakers(current => [...current, name]);
-    updateField("maker", name);
-    setMakerDraft("");
-    setMakerEditorOpen(false);
+    if (!name) return;
+    catalogGateway
+      .addWorkshop(name)
+      .then(() => catalogGateway.loadCatalog())
+      .then(entry => {
+        setMakerDraft("");
+        setMakerEditorOpen(false);
+        setCatalog(entry);
+        updateField("maker", name);
+      })
+      .catch(() => setCatalogFeedback({ tone: "error", text: "افزودن کارگاه ناموفق بود" }));
   };
-  const removeMaker = () => {
-    if (makers.length === 1) return;
-    const next = makers.filter(maker => maker !== fields.maker);
-    setMakers(next);
-    updateField("maker", next[0]);
+  const removeWorkshop = () => {
+    const current = workshops.find(workshop => workshop.name === fields.maker) ?? workshops[0];
+    if (current === undefined || workshops.length === 1) return;
+    catalogGateway
+      .removeWorkshop(current.id)
+      .then(() => catalogGateway.loadCatalog())
+      .then(entry => {
+        setCatalog(entry);
+        const remaining = entry.workshops[0]?.name ?? "";
+        updateField("maker", remaining);
+      })
+      .catch(() => setCatalogFeedback({ tone: "error", text: "حذف کارگاه ناموفق بود" }));
+  };
+  const submitAction = (action: () => void) => {
+    const validation = validateProductForm({
+      name: fields.name,
+      code: fields.code,
+      weight: fields.weight,
+      stoneWeight: fields.manualWeight,
+      purity: fields.purity,
+      quantity: fields.quantity,
+      groupId: selectedGroup?.id ?? null,
+      categoryId: selectedCategory?.id ?? null,
+      workshopId: workshops.find(workshop => workshop.name === fields.maker)?.id ?? null,
+    });
+    setIssues(validation.issues);
+    if (validation.valid) action();
   };
   const clearForm = () => {
     setFields({ ...initialFields, name: "", code: "", weight: "", manualWeight: "", size: "", note: "" });
-    setCategoryIndex(0);
-    setExpandedCategory(0);
-    setSubcategory("انگشتر زنانه");
+    setSelectedGroupId(groups[0]?.id ?? null);
+    setExpandedGroupId(groups[0]?.id ?? null);
+    setSelectedCategoryId(defaultCategoryFor(groups[0])?.id ?? null);
     setInInventory(true);
     clearImage();
     setNotice(previewNotice);
+    setIssues([]);
   };
+
+  const groupImageFor = (group: RegistrationGroupOption) => group.image ?? categoryAssets[0];
 
   return (
     <main className="product-registration" data-testid="product-registration-page">
@@ -93,26 +182,29 @@ export function ProductRegistrationPage() {
                 <h3 id="registration-category-title">گروه / دسته اصلی</h3>
                 <span className="registration-inline-actions">
                   <button type="button" aria-label="افزودن گروه اصلی" title="افزودن گروه اصلی" onClick={() => setGroupEditorOpen(true)}><Plus size={14} /></button>
-                  <button type="button" aria-label="حذف گروه اصلی" title="حذف گروه اصلی" disabled={categories.length === 1} onClick={removeCategory}><Trash2 size={13} /></button>
+                  <button type="button" aria-label="حذف گروه اصلی" title="حذف گروه اصلی" disabled={groups.length <= 1} onClick={removeGroup}><Trash2 size={13} /></button>
                 </span>
               </div>
               {groupEditorOpen && <div className="registration-manager-row">
-                <input autoFocus aria-label="نام گروه اصلی جدید" placeholder="نام گروه جدید" value={groupDraft} onChange={event => setGroupDraft(event.target.value)} onKeyDown={event => event.key === "Enter" && (event.preventDefault(), addCategory())} />
-                <button type="button" aria-label="ثبت گروه اصلی" onClick={addCategory}><Check size={14} /></button>
+                <input autoFocus aria-label="نام گروه اصلی جدید" placeholder="نام گروه جدید" value={groupDraft} onChange={event => setGroupDraft(event.target.value)} onKeyDown={event => event.key === "Enter" && (event.preventDefault(), addGroup())} />
+                <button type="button" aria-label="ثبت گروه اصلی" onClick={addGroup}><Check size={14} /></button>
                 <button type="button" aria-label="انصراف افزودن گروه" onClick={() => { setGroupEditorOpen(false); setGroupDraft(""); }}><X size={14} /></button>
               </div>}
-              {categories.map((category, index) => (
-                <div className="registration-category-branch" key={category.name}>
-                  <button type="button" className={`registration-category-toggle${categoryIndex === index ? " selected" : ""}`} aria-expanded={expandedCategory === index} aria-controls={`registration-category-${index}`} onClick={() => {
-                    setExpandedCategory(expandedCategory === index ? null : index);
-                    if (categoryIndex !== index) { setCategoryIndex(index); setSubcategory(category.children[0]); }
+              {catalogStatus === "loading" && <p className="registration-catalog-status" role="status">در حال بارگذاری گروه‌ها…</p>}
+              {catalogStatus === "error" && <p className="registration-catalog-status" role="alert">خطا در خواندن گروه‌ها</p>}
+              {catalogStatus === "ready" && groups.length === 0 && <p className="registration-catalog-status" role="status">گروهی ثبت نشده است</p>}
+              {groups.map((group, index) => (
+                <div className="registration-category-branch" key={group.id}>
+                  <button type="button" className={`registration-category-toggle${selectedGroup?.id === group.id ? " selected" : ""}`} aria-expanded={expandedGroupId === group.id} aria-controls={`registration-category-${index}`} onClick={() => {
+                    setExpandedGroupId(current => (current === group.id ? null : group.id));
+                    if (selectedGroup?.id !== group.id) selectGroup(group);
                   }}>
-                    <span className="registration-tree-arrow" aria-hidden="true">{expandedCategory === index ? "▾" : "▸"}</span>
-                    <img src={category.image} alt="" /><span>{category.name}</span><ChevronDown size={15} />
+                    <span className="registration-tree-arrow" aria-hidden="true">{expandedGroupId === group.id ? "▾" : "▸"}</span>
+                    <img src={groupImageFor(group)} alt="" /><span>{group.name}</span><ChevronDown size={15} />
                   </button>
-                  {expandedCategory === index && <div className="registration-subcategories" id={`registration-category-${index}`}>
-                    {category.children.map(child => <button type="button" key={child} aria-pressed={subcategory === child} onClick={() => setSubcategory(child)}>
-                      <img src={category.image} alt="" /><span>{child}</span>
+                  {expandedGroupId === group.id && <div className="registration-subcategories" id={`registration-category-${index}`}>
+                    {group.children.map(child => <button type="button" key={child.id} aria-pressed={selectedCategory?.id === child.id} onClick={() => setSelectedCategoryId(child.id)}>
+                      <img src={groupImageFor(group)} alt="" /><span>{child.name}</span>
                     </button>)}
                   </div>}
                 </div>
@@ -121,7 +213,10 @@ export function ProductRegistrationPage() {
 
             <div className="registration-details">
               <div className="registration-identity registration-panel">
-                <label className="registration-field"><span>زیرمجموعه</span><select value={subcategory} onChange={event => setSubcategory(event.target.value)}>{categories[categoryIndex].children.map(child => <option key={child}>{child}</option>)}</select></label>
+                <label className="registration-field"><span>زیرمجموعه</span><select value={selectedCategory?.name ?? ""} onChange={event => {
+                  const match = selectedGroup?.children.find(category => category.name === event.target.value);
+                  if (match) setSelectedCategoryId(match.id);
+                }}>{(selectedGroup?.children ?? []).map(child => <option key={child.id}>{child.name}</option>)}</select></label>
                 <label className="registration-field"><span><i aria-hidden="true">*</i> نام محصول</span><input aria-label="نام محصول" value={fields.name} onChange={event => updateField("name", event.target.value)} /></label>
                 <label className="registration-field registration-code"><span>کد داخلی</span><span className="registration-icon-input"><input value={fields.code} onChange={event => updateField("code", event.target.value)} dir="ltr" /><ScanBarcode size={18} aria-hidden="true" /></span></label>
               </div>
@@ -154,9 +249,9 @@ export function ProductRegistrationPage() {
 
             <section className="registration-additional registration-panel" aria-label="اطلاعات تکمیلی">
               <div className="registration-field registration-managed-field">
-                <span className="registration-managed-label">کارگاه / سازنده <span className="registration-inline-actions"><button type="button" aria-label="افزودن کارگاه" title="افزودن کارگاه" onClick={() => setMakerEditorOpen(true)}><Plus size={13} /></button><button type="button" aria-label="حذف کارگاه" title="حذف کارگاه" disabled={makers.length === 1} onClick={removeMaker}><Trash2 size={12} /></button></span></span>
-                <select aria-label="کارگاه / سازنده" value={fields.maker} onChange={event => updateField("maker", event.target.value)}>{makers.map(maker => <option key={maker}>{maker}</option>)}</select>
-                {makerEditorOpen && <div className="registration-manager-row registration-maker-editor"><input autoFocus aria-label="نام کارگاه جدید" placeholder="نام کارگاه جدید" value={makerDraft} onChange={event => setMakerDraft(event.target.value)} onKeyDown={event => event.key === "Enter" && (event.preventDefault(), addMaker())} /><button type="button" aria-label="ثبت کارگاه" onClick={addMaker}><Check size={14} /></button><button type="button" aria-label="انصراف افزودن کارگاه" onClick={() => { setMakerEditorOpen(false); setMakerDraft(""); }}><X size={14} /></button></div>}
+                <span className="registration-managed-label">کارگاه / سازنده <span className="registration-inline-actions"><button type="button" aria-label="افزودن کارگاه" title="افزودن کارگاه" onClick={() => setMakerEditorOpen(true)}><Plus size={13} /></button><button type="button" aria-label="حذف کارگاه" title="حذف کارگاه" disabled={workshops.length === 1} onClick={removeWorkshop}><Trash2 size={12} /></button></span></span>
+                <select aria-label="کارگاه / سازنده" value={fields.maker} onChange={event => updateField("maker", event.target.value)}>{workshops.map(workshop => <option key={workshop.id}>{workshop.name}</option>)}</select>
+                {makerEditorOpen && <div className="registration-manager-row registration-maker-editor"><input autoFocus aria-label="نام کارگاه جدید" placeholder="نام کارگاه جدید" value={makerDraft} onChange={event => setMakerDraft(event.target.value)} onKeyDown={event => event.key === "Enter" && (event.preventDefault(), addWorkshop())} /><button type="button" aria-label="ثبت کارگاه" onClick={addWorkshop}><Check size={14} /></button><button type="button" aria-label="انصراف افزودن کارگاه" onClick={() => { setMakerEditorOpen(false); setMakerDraft(""); }}><X size={14} /></button></div>}
               </div>
               <label className="registration-field"><span>قالب لیبل</span><select value={fields.template} onChange={event => updateField("template", event.target.value)}><option value="default">قالب پیش‌فرض (QR)</option><option value="compact">قالب کوچک</option></select></label>
               <label className="registration-field registration-notes"><span>یادداشت</span><textarea aria-label="یادداشت" maxLength={300} value={fields.note} onChange={event => updateField("note", event.target.value)} /><small dir="ltr">{fields.note.length} / 300</small></label>
@@ -164,13 +259,15 @@ export function ProductRegistrationPage() {
             <div className="registration-inventory registration-panel"><label><span><b>وضعیت موجودی</b><small>محصول پس از ثبت به موجودی افزوده شود</small></span><input type="checkbox" aria-label="وضعیت موجودی" checked={inInventory} onChange={event => setInInventory(event.target.checked)} /></label></div>
           </div>
           <div className="registration-actions" role="group" aria-label="عملیات محصول">
-            <button type="button" className="registration-print" onClick={() => setNotice(`چاپ — ${previewNotice}`)}>چاپ<Printer size={23} /></button>
-            <button type="button" className="registration-save" onClick={() => setNotice(`ثبت — ${previewNotice}`)}>ثبت<Save size={22} /></button>
-            <button type="button" className="registration-print-save" onClick={() => setNotice(`چاپ و ثبت — ${previewNotice}`)}>چاپ و ثبت<PrinterCheck size={24} /></button>
+            <button type="button" className="registration-print" onClick={() => submitAction(() => setNotice(`چاپ — ${previewNotice}`))}>چاپ<Printer size={23} /></button>
+            <button type="button" className="registration-save" onClick={() => submitAction(() => setNotice(`ثبت — ${previewNotice}`))}>ثبت<Save size={22} /></button>
+            <button type="button" className="registration-print-save" onClick={() => submitAction(() => setNotice(`چاپ و ثبت — ${previewNotice}`))}>چاپ و ثبت<PrinterCheck size={24} /></button>
             <button type="button" className="registration-clear" onClick={clearForm}>پاک کردن فرم<Undo2 size={19} /></button>
           </div>
+          {issues.length > 0 && <p className="registration-preview-notice" role="alert">{issues.map(issue => issue.message).join(" • ")}</p>}
         </form>
         <p className="registration-preview-notice" role="status">{notice}</p>
+        {catalogFeedback !== null && <p className="registration-preview-notice" role={catalogFeedback.tone === "error" ? "alert" : "status"}>{catalogFeedback.text}</p>}
       </div>
 
       <aside className="registration-devices" aria-label="وضعیت دستگاه‌ها">
