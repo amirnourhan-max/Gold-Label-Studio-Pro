@@ -1,7 +1,6 @@
 use std::{fs, time::{SystemTime, UNIX_EPOCH}};
 
 use rusqlite::{Connection, Error};
-use std::{fs, time::{SystemTime, UNIX_EPOCH}};
 
 use super::INITIAL_SCHEMA_SQL;
 
