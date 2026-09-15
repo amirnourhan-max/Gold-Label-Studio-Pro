@@ -187,7 +187,13 @@ export function ProductRegistrationPage({ workflow = productWorkflow }: { workfl
         mainCategoryId: (selectedCategory?.id ?? null) as EntityId | null,
         workshopId: (workshops.find(workshop => workshop.name === fields.maker)?.id ?? null) as EntityId | null,
       });
-      setNotice(result.persisted ? `${action} محصول با موفقیت انجام شد.` : `${action} — ${previewNotice}`);
+      // "چاپ و ثبت" saves the product, but no print job is sent from this form yet;
+      // the notice must not claim that a label was printed.
+      setNotice(result.persisted
+        ? action === "چاپ و ثبت"
+          ? "محصول ثبت شد؛ ارسال به چاپگر در این نسخه فعال نیست."
+          : "ثبت محصول با موفقیت انجام شد."
+        : `${action} — ${previewNotice}`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "ثبت محصول انجام نشد.");
     } finally {

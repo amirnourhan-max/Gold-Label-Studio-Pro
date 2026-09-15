@@ -7,6 +7,8 @@ const typeKeys = (target: EventTarget, keys: readonly string[]) => {
   }
 };
 
+const typeCode = (target: EventTarget, code: string) => typeKeys(target, [...code, "Enter"]);
+
 describe("keyboard wedge scanner", () => {
   it("emits a scan when the terminator key arrives", async () => {
     const target = new EventTarget();
@@ -64,19 +66,47 @@ describe("keyboard wedge scanner", () => {
     expect(onScan).toHaveBeenCalledWith(expect.objectContaining({ code: "AAA" }));
   });
 
-  it("stops listening after stop and reports state through test()", async () => {
+  it("stops listening after stop", async () => {
     const target = new EventTarget();
     const scanner = new KeyboardWedgeScanner({ target });
     const onScan = vi.fn();
-
-    expect(await scanner.test()).toEqual({ ok: false, message: "اسکنر کیبوردی فعال نیست" });
-
     await scanner.start(onScan);
-    expect(await scanner.test()).toEqual({ ok: true, message: "اسکنر کیبوردی فعال است" });
 
     await scanner.stop();
     typeKeys(target, ["R", "0", "0", "1", "Enter"]);
+
     expect(onScan).not.toHaveBeenCalled();
     expect(scanner.isListening).toBe(false);
+  });
+
+  it("resolves test() with the code a real scan produced", async () => {
+    const target = new EventTarget();
+    const scanner = new KeyboardWedgeScanner({ target, testTimeoutMs: 1_000 });
+
+    const testing = scanner.test();
+    typeCode(target, "R-250904-00125");
+
+    expect(await testing).toEqual({ ok: true, message: "کد اسکن شد: R-250904-00125" });
+    expect(scanner.isListening).toBe(false);
+  });
+
+  it("reports honestly when no code arrives before the timeout", async () => {
+    const target = new EventTarget();
+    const scanner = new KeyboardWedgeScanner({ target, testTimeoutMs: 0 });
+
+    expect(await scanner.test()).toEqual({ ok: false, message: "کدی در مدت 0 ثانیه اسکن نشد" });
+    expect(scanner.isListening).toBe(false);
+  });
+
+  it("refuses to start a second test while one is waiting", async () => {
+    const target = new EventTarget();
+    const scanner = new KeyboardWedgeScanner({ target, testTimeoutMs: 1_000 });
+
+    const first = scanner.test();
+
+    expect(await scanner.test()).toEqual({ ok: false, message: "آزمایش اسکنر در حال اجراست" });
+
+    typeCode(target, "B-0007");
+    expect(await first).toEqual({ ok: true, message: "کد اسکن شد: B-0007" });
   });
 });

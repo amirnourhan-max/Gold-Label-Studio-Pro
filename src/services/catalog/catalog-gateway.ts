@@ -1,5 +1,6 @@
 import { CatalogRepository } from "../../repositories/catalog-repository";
 import type { SqlClient, SqlValue } from "../database/sql-client";
+import { isTauriEnvironment } from "../hardware/hardware-environment";
 import { MockCatalogGateway } from "./mock-catalog-gateway";
 import { PersistenceCatalogGateway } from "./persistence-catalog-gateway";
 import type { CatalogGateway } from "./catalog-contract";
@@ -8,22 +9,7 @@ export type { CatalogEntry, CatalogGateway } from "./catalog-contract";
 export { MockCatalogGateway } from "./mock-catalog-gateway";
 export { PersistenceCatalogGateway } from "./persistence-catalog-gateway";
 
-export type CatalogGatewayMode = "persistence" | "mock";
-
 let gatewayInstance: CatalogGateway | null = null;
-
-/**
- * The Tauri SQL plugin only exists inside the desktop shell. Vite injects
- * TAURI_ENV_PLATFORM for Tauri builds, so its presence selects the persistence
- * gateway; every other environment (browser preview, tests) gets the
- * controlled mock fallback.
- */
-export const isPersistenceAvailable = (): boolean => {
-  const injected = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return typeof injected?.TAURI_ENV_PLATFORM === "string" && injected.TAURI_ENV_PLATFORM.length > 0;
-};
-
-export const catalogGatewayMode = (): CatalogGatewayMode => (isPersistenceAvailable() ? "persistence" : "mock");
 
 /** Defers the Tauri SQL client import until the first actual database call. */
 const createLazySqlClient = (open: () => Promise<SqlClient>): SqlClient => {
@@ -54,7 +40,9 @@ const createPersistenceGateway = (): CatalogGateway => {
 
 export const createDefaultCatalogGateway = (): CatalogGateway => {
   if (gatewayInstance === null) {
-    gatewayInstance = isPersistenceAvailable() ? createPersistenceGateway() : new MockCatalogGateway();
+    // The SQL plugin only exists inside the desktop shell; every other
+    // environment (browser preview, tests) gets the controlled mock fallback.
+    gatewayInstance = isTauriEnvironment() ? createPersistenceGateway() : new MockCatalogGateway();
   }
   return gatewayInstance;
 };

@@ -43,9 +43,6 @@ export const createPrinterService = (options: { transport?: PrinterTransport } =
   };
 };
 
-export const printerServiceWithDefaults = (transport?: PrinterTransport): PrinterService =>
-  createPrinterService({ transport });
-
 /** Convenience used by the packaging/label flows for a single label job. */
 export const singleLabelModel = (options: {
   productName: string;

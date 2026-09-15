@@ -1,4 +1,5 @@
 import { openPersistenceDatabase } from "../database/database-bootstrap";
+import { isTauriEnvironment } from "../hardware/hardware-environment";
 import { SettingsRepository } from "../../repositories/settings-repository";
 
 /** Persists when the last successful backup happened, for the auto schedule. */
@@ -37,7 +38,11 @@ export const createDefaultBackupStateGateway = async (): Promise<BackupStateGate
   try {
     const client = await openPersistenceDatabase();
     return new PersistenceBackupStateGateway(new SettingsRepository(client));
-  } catch {
+  } catch (error) {
+    // Only an environment without SQLite falls back to the in-memory schedule
+    // marker; a desktop database failure is surfaced so the automatic backup
+    // never claims a completion it could not record.
+    if (isTauriEnvironment()) throw error;
     return new InMemoryBackupStateGateway();
   }
 };

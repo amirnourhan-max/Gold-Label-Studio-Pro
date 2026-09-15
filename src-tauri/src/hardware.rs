@@ -19,18 +19,29 @@ static SERIAL_SESSIONS: LazyLock<Mutex<HashMap<u64, Box<dyn serialport::SerialPo
 static NEXT_SERIAL_ID: Mutex<u64> = Mutex::new(1);
 
 /// Resolves the live SQLite file to the same location the SQL plugin uses.
-/// Checks the app data and app config directories; defaults to app data.
+///
+/// The plugin resolves the relative `sqlite:gold-label-studio-pro.db` URL
+/// against the AppConfig directory, so that directory is authoritative. AppData
+/// is only consulted when no database exists there yet, which keeps a database
+/// written by an older layout reachable instead of backing up the wrong file.
 fn resolve_database_path(app: &AppHandle) -> Result<PathBuf, String> {
-    for directory in [app.path().app_data_dir(), app.path().app_config_dir()] {
-        if let Ok(directory) = directory {
-            let candidate = directory.join(DATABASE_FILE_NAME);
-            if candidate.is_file() {
-                return Ok(candidate);
-            }
+    let config_directory = app.path().app_config_dir().ok();
+    let data_directory = app.path().app_data_dir().ok();
+
+    for directory in [config_directory.as_ref(), data_directory.as_ref()]
+        .into_iter()
+        .flatten()
+    {
+        let candidate = directory.join(DATABASE_FILE_NAME);
+        if candidate.is_file() {
+            return Ok(candidate);
         }
     }
-    let default_directory = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    Ok(default_directory.join(DATABASE_FILE_NAME))
+
+    config_directory
+        .or(data_directory)
+        .map(|directory| directory.join(DATABASE_FILE_NAME))
+        .ok_or_else(|| "could not resolve the application data directory".to_string())
 }
 
 /// Flushes the WAL into the main database file so a plain file copy is coherent.
@@ -68,6 +79,15 @@ pub(crate) fn validate_sqlite_file(path: &Path) -> Result<(), String> {
 /// WAL-safe copy: checkpoint first, copy the main file plus any side files,
 /// then validate the copy before reporting success.
 fn copy_database_coherently(source: &Path, destination: &Path) -> Result<(), String> {
+    // Checked before the checkpoint, because opening a missing SQLite path
+    // would create an empty database and turn a wrong path into a confusing
+    // "not a SQLite file" error instead of an honest one.
+    if !source.is_file() {
+        return Err(format!("database file not found: {}", source.display()));
+    }
+    if source == destination {
+        return Err("backup destination is the live database file".to_string());
+    }
     checkpoint(source)?;
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent).map_err(|error| format!("create destination directory: {error}"))?;
@@ -479,6 +499,31 @@ mod tests {
 
         fs::remove_file(&target).ok();
         fs::remove_file(&broken).ok();
+    }
+
+    #[test]
+    fn copy_reports_a_missing_database_instead_of_creating_one() {
+        let missing = std::env::temp_dir().join(format!("glsp-missing-{}.db", now_stamp()));
+        let destination = std::env::temp_dir().join(format!("glsp-missing-copy-{}.db", now_stamp()));
+        fs::remove_file(&missing).ok();
+
+        let error = copy_database_coherently(&missing, &destination).unwrap_err();
+
+        assert!(error.contains("not found"));
+        assert!(!missing.exists(), "a failed backup must not leave an empty database behind");
+        assert!(!destination.exists());
+    }
+
+    #[test]
+    fn copy_refuses_to_overwrite_the_live_database() {
+        let live = std::env::temp_dir().join(format!("glsp-live-{}.db", now_stamp()));
+        populated_database(&live);
+
+        let error = copy_database_coherently(&live, &live).unwrap_err();
+
+        assert!(error.contains("live database"));
+        assert_eq!(row_counts(&live)[4], ("products", 1));
+        fs::remove_file(&live).ok();
     }
 
     #[test]

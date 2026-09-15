@@ -1,5 +1,6 @@
 import { ProductRepository } from "../../repositories/product-repository";
 import { openPersistenceDatabase } from "../database/database-bootstrap";
+import { isTauriEnvironment } from "../hardware/hardware-environment";
 import type { SqlClient } from "../database/sql-client";
 import type { PackagingGateway, PackagingProductLookup } from "./packaging-contract";
 import { createMockPackagingGateway } from "./mock-packaging-gateway";
@@ -42,7 +43,8 @@ export const createProductLookup = (client: SqlClient): PackagingProductLookup =
 
 /**
  * Resolves SQLite once, then keeps using it. Only the very first connection attempt falls back
- * to the approved mock data, so a runtime write failure is never hidden.
+ * to the approved mock data in an environment that has no SQLite at all (browser preview), so
+ * neither a runtime write failure nor a desktop database failure is ever hidden behind mock data.
  */
 export const createDefaultPackagingGateway = (): PackagingGateway => {
   const fallback = createMockPackagingGateway();
@@ -64,7 +66,9 @@ export const createDefaultPackagingGateway = (): PackagingGateway => {
       primary = createPersistencePackagingGateway({ client, productLookup: createProductLookup(client) });
 
       return primary;
-    } catch {
+    } catch (error) {
+      if (isTauriEnvironment()) throw error;
+
       fallbackActive = true;
 
       return fallback;

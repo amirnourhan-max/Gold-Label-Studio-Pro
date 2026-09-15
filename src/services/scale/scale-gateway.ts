@@ -37,8 +37,11 @@ export const createDefaultScaleFactory = (options: {
         // Deterministic refusal: preview has no serial transport.
         return new RefusingScaleAdapter("ترازو در پیش‌نمایش در دسترس نیست (دسکتاپ مورد نیاز است)");
       }
-      const port = await portProvider().open(config.port, config.baudRate);
-      return new AandScaleAdapter(port);
+      const provider = portProvider();
+      const port = await provider.open(config.port, config.baudRate);
+      // The adapter reopens the port itself on reconnect, so a dropped device
+      // recovers on a live session instead of retrying a dead handle.
+      return new AandScaleAdapter(port, { reopen: () => provider.open(config.port, config.baudRate) });
     },
     async createService(config: ScaleConnectionConfig): Promise<ScaleService> {
       return new SerialScaleService(await this.createAdapter(config), serviceConfig);

@@ -62,6 +62,20 @@ describe("serial scanner adapter", () => {
     expect(onScan).not.toHaveBeenCalled();
   });
 
+  it("drops a runaway partial frame without losing complete frames", async () => {
+    const port = new FakeSerialPort(["X".repeat(4000), "R-250904\r\nA-0001\r\n"]);
+    const scanner = new SerialScannerAdapter(port, { maxBufferBytes: 64 });
+    const onScan = vi.fn();
+    await scanner.start(onScan);
+
+    const runaway = await scanner.drain();
+    const complete = await scanner.drain();
+
+    expect(runaway).toEqual([]);
+    expect(complete.map(scan => scan.code)).toEqual(["R-250904", "A-0001"]);
+    expect(onScan).toHaveBeenCalledTimes(2);
+  });
+
   it("reports the port probe through test()", async () => {
     const port = new FakeSerialPort([]);
     const scanner = new SerialScannerAdapter(port);

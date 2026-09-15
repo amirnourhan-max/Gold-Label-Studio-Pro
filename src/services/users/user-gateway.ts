@@ -1,4 +1,5 @@
 import { openPersistenceDatabase } from "../database/database-bootstrap";
+import { isTauriEnvironment } from "../hardware/hardware-environment";
 import { UserRepository } from "../../repositories/user-repository";
 import { asUtcIsoString } from "../../types/persistence";
 import { AuthService, SessionStore, type AuthGateway } from "./auth-service";
@@ -17,7 +18,12 @@ export const createDefaultUserGateway = async (): Promise<UserGateway & AuthGate
   try {
     const client = await openPersistenceDatabase();
     return new PersistenceUserGateway(new UserRepository(client));
-  } catch {
+  } catch (error) {
+    // The in-memory gateway exists for the browser preview, which has no SQLite
+    // at all. Inside the desktop shell a database failure must be reported
+    // instead: falling back to invented users would unlock the workspace
+    // without any real authentication.
+    if (isTauriEnvironment()) throw error;
     return new MockUserGateway();
   }
 };

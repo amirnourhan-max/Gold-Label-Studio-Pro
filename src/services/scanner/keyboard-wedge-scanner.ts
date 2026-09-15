@@ -11,7 +11,12 @@ export type KeyboardWedgeOptions = Readonly<{
   maxGapMs?: number;
   now?: () => number;
   timestamp?: () => string;
+  /** How long the Settings test action waits for a real scanned code. */
+  testTimeoutMs?: number;
 }>;
+
+/** `test()` has to see an actual scan, so it waits for one instead of guessing. */
+export const DEFAULT_SCANNER_TEST_TIMEOUT_MS = 5_000;
 
 /**
  * Keyboard-wedge support: hardware scanners type the code and press a
@@ -25,11 +30,14 @@ export class KeyboardWedgeScanner implements ScannerSource {
   private readonly maxGapMs: number;
   private readonly now: () => number;
   private readonly timestamp: () => string;
+  private readonly testTimeoutMs: number;
 
   private buffer = "";
   private lastKeyAt = 0;
   private listening = false;
   private onScan: ((payload: ScanPayload) => void) | null = null;
+  private settleTest: ((result: ScannerTestResult) => void) | null = null;
+  private testTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(options: KeyboardWedgeOptions = {}) {
     this.target = options.target ?? (typeof window === "undefined" ? new EventTarget() : window);
@@ -38,6 +46,7 @@ export class KeyboardWedgeScanner implements ScannerSource {
     this.maxGapMs = options.maxGapMs ?? 120;
     this.now = options.now ?? (() => Date.now());
     this.timestamp = options.timestamp ?? (() => new Date().toISOString());
+    this.testTimeoutMs = options.testTimeoutMs ?? DEFAULT_SCANNER_TEST_TIMEOUT_MS;
   }
 
   private readonly handleKeyDown = (event: Event): void => {
@@ -68,6 +77,7 @@ export class KeyboardWedgeScanner implements ScannerSource {
   }
 
   async stop(): Promise<void> {
+    this.clearTestTimer();
     if (this.listening) {
       this.target.removeEventListener("keydown", this.handleKeyDown);
       this.listening = false;
@@ -76,11 +86,43 @@ export class KeyboardWedgeScanner implements ScannerSource {
     this.buffer = "";
   }
 
+  /**
+   * A keyboard-wedge scanner has no connection to probe: it *is* the keyboard.
+   * The only honest test is to listen and wait for a real code, so this resolves
+   * with the scanned code or reports that nothing arrived before the timeout.
+   */
   async test(): Promise<ScannerTestResult> {
-    return {
-      ok: this.listening,
-      message: this.listening ? "اسکنر کیبوردی فعال است" : "اسکنر کیبوردی فعال نیست",
-    };
+    if (this.settleTest !== null) {
+      return { ok: false, message: "آزمایش اسکنر در حال اجراست" };
+    }
+
+    const result = new Promise<ScannerTestResult>(resolve => {
+      this.settleTest = resolve;
+      this.testTimer = setTimeout(() => {
+        this.finishTest({
+          ok: false,
+          message: `کدی در مدت ${Math.round(this.testTimeoutMs / 1000)} ثانیه اسکن نشد`,
+        });
+      }, this.testTimeoutMs);
+    });
+
+    await this.start(payload => this.finishTest({ ok: true, message: `کد اسکن شد: ${payload.code}` }));
+    return result;
+  }
+
+  private finishTest(result: ScannerTestResult): void {
+    const resolve = this.settleTest;
+    if (resolve === null) return;
+    this.settleTest = null;
+    this.clearTestTimer();
+    void this.stop().then(() => resolve(result));
+  }
+
+  private clearTestTimer(): void {
+    if (this.testTimer !== null) {
+      clearTimeout(this.testTimer);
+      this.testTimer = null;
+    }
   }
 
   get isListening(): boolean {

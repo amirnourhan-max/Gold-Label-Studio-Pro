@@ -14,6 +14,7 @@ on:
         users-auth-integration,
         feature-integration-v1,
         final-functional-integration,
+        final-audit-release,
       ]
 
 jobs:

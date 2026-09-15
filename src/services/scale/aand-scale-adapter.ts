@@ -37,6 +37,12 @@ export type AandScaleAdapterOptions = Readonly<{
   /** Maximum buffered bytes before the buffer is dropped (runaway frames). */
   maxBufferBytes?: number;
   lineEnding?: string;
+  /**
+   * Opens a fresh serial session. A handle whose device was unplugged cannot be
+   * revived, so a reconnect must ask the transport for a new one; without this
+   * option the adapter can only reset its buffer.
+   */
+  reopen?: () => Promise<SerialPortHandle>;
 }>;
 
 /**
@@ -47,13 +53,26 @@ export type AandScaleAdapterOptions = Readonly<{
 export class AandScaleAdapter implements ScaleAdapter {
   private buffer = "";
   private lastReadout: ScaleReadout | null = null;
+  private connectCount = 0;
 
   constructor(
-    private readonly port: SerialPortHandle,
+    private port: SerialPortHandle,
     private readonly options: AandScaleAdapterOptions = {},
   ) {}
 
   async connect(): Promise<void> {
+    // The first connect adopts the session the factory already opened; every
+    // later connect is a reconnect and must end up on a live device handle.
+    if (this.connectCount > 0 && this.options.reopen !== undefined) {
+      try {
+        await this.port.close();
+      } catch {
+        // The previous session may already be gone; only the new one matters.
+      }
+      this.port = await this.options.reopen();
+    }
+
+    this.connectCount += 1;
     this.buffer = "";
     this.lastReadout = null;
   }

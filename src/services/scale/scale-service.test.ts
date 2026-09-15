@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { AandScaleAdapter } from "./aand-scale-adapter";
 import type { ScaleAdapter, ScaleServiceConfig } from "./scale-contract";
 import { SerialScaleService } from "./scale-service";
-import { FakeSerialPort, type FakeSerialPortOptions } from "../hardware/test-support/fake-serial-port";
+import {
+  FakeSerialPort,
+  FakeSerialPortProvider,
+  type FakeSerialPortOptions,
+} from "../hardware/test-support/fake-serial-port";
 
 const makeConfig = (overrides: Partial<ScaleServiceConfig> = {}): ScaleServiceConfig => {
   let clock = 0;
@@ -91,6 +95,24 @@ describe("serial scale service", () => {
     expect(result).toMatchObject({ ok: true, grams: 8.34 });
     expect(connect).toHaveBeenCalledTimes(2); // initial + after disconnect
     expect(port.closed).toBe(false);
+  });
+
+  it("opens a fresh serial session when it reconnects", async () => {
+    const deadPort = new FakeSerialPort([], { persistentFailureFrom: 0 });
+    const recovered = new FakeSerialPort(Array(3).fill("ST,GS,+0004.385 g\r\n"));
+    const provider = new FakeSerialPortProvider(["COM3"]).withHandle(recovered);
+    const adapter = new AandScaleAdapter(deadPort, {
+      reopen: async () => provider.open("COM3", 9600),
+    });
+    const service = new SerialScaleService(adapter, makeConfig());
+    await service.connect();
+
+    const result = await service.probeStableWeight();
+
+    expect(result).toMatchObject({ ok: true, grams: 4.385 });
+    expect(provider.opened).toEqual([{ port: "COM3", baud: 9600 }]);
+    expect(deadPort.closed).toBe(true);
+    expect(service.state).toBe("connected");
   });
 
   it("reports a disconnect when reconnects are exhausted", async () => {

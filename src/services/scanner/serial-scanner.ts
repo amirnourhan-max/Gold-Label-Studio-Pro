@@ -14,6 +14,8 @@ export type SerialScannerOptions = Readonly<{
   minLength?: number;
   scheduler?: Scheduler;
   timestamp?: () => string;
+  /** Maximum buffered bytes before the buffer is trimmed (runaway frames). */
+  maxBufferBytes?: number;
 }>;
 
 /**
@@ -28,6 +30,7 @@ export class SerialScannerAdapter implements ScannerSource {
   private readonly minLength: number;
   private readonly scheduler: Scheduler;
   private readonly timestamp: () => string;
+  private readonly maxBufferBytes: number;
 
   private buffer = "";
   private onScan: ((payload: ScanPayload) => void) | null = null;
@@ -39,6 +42,7 @@ export class SerialScannerAdapter implements ScannerSource {
     this.minLength = options.minLength ?? 3;
     this.scheduler = options.scheduler ?? defaultScheduler;
     this.timestamp = options.timestamp ?? (() => new Date().toISOString());
+    this.maxBufferBytes = options.maxBufferBytes ?? 512;
   }
 
   get isScanning(): boolean {
@@ -55,6 +59,10 @@ export class SerialScannerAdapter implements ScannerSource {
 
     const parts = this.buffer.split(this.lineEnding);
     this.buffer = parts.pop() ?? "";
+    // Complete frames in the chunk are already emitted above; only an oversized
+    // *partial* frame is dropped, so a device that never sends the line ending
+    // cannot grow the buffer without bound or corrupt the next code.
+    if (this.buffer.length > this.maxBufferBytes) this.buffer = "";
 
     const emitted: ScanPayload[] = [];
     for (const part of parts) {
