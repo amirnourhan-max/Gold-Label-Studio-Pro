@@ -18,12 +18,13 @@ import { approvedSettingsSnapshot, backupIntervalOptions } from "../../services/
 import { createBackupService } from "../../services/backup/backup-service";
 import type { BackupOutcome } from "../../services/backup/backup-contract";
 import { createDefaultBackupStateGateway, type BackupStateGateway } from "../../services/backup/backup-state-gateway";
+import { backupConfigFromSettings } from "../../services/backup/backup-scheduler";
 import {
   createDeviceProbeService,
   type DeviceProbeKind,
   type DeviceProbeOutcome,
 } from "../../services/hardware/device-probe";
-import { isTauriEnvironment } from "../../services/hardware/hardware-environment";
+import { relaunchApplication } from "../../services/backup/app-relaunch";
 import { defaultUserService } from "../../services/users/user-gateway";
 import { toPersianDigits, type UserListItem, type UserSnapshot } from "../../services/users/user-contract";
 import type { UserMutationResult } from "../../services/users/user-service";
@@ -32,6 +33,16 @@ import type { UserRole } from "../../types/persistence";
 import "./settings-page.css";
 
 const USER_LOAD_ERROR_MESSAGE = "بارگذاری فهرست کاربران ناموفق بود";
+
+/** How long the restore result stays readable before the app restarts. */
+const RESTORE_RELAUNCH_DELAY_MS = 2_500;
+
+type RestoreConfirmation = Readonly<{
+  path: string;
+  confirming: boolean;
+  /** Set once the database was replaced and the app is about to restart. */
+  restored?: boolean;
+}>;
 
 type UserStatus = "loading" | "ready" | "error";
 
@@ -117,6 +128,7 @@ export function SettingsPage() {
   });
   const [probing, setProbing] = useState<DeviceProbeKind | null>(null);
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
+  const [restoreConfirmation, setRestoreConfirmation] = useState<RestoreConfirmation | null>(null);
   const [backupRunning, setBackupRunning] = useState<"manual" | "restore" | null>(null);
   const [lastBackupAction, setLastBackupAction] = useState<BackupOutcome | null>(null);
   const [automaticBackup, setAutomaticBackup] = useState<BackupOutcome | null>(null);
@@ -138,11 +150,8 @@ export function SettingsPage() {
     scannerBaudRate: 9600,
   });
 
-  const backupConfig = (backup: BackupSettingsView) => ({
-    enabled: backup.enabled,
-    intervalMinutes: backupIntervalOptions[backup.intervalLabel] ?? 1440,
-    destinationPath: backup.destinationPath,
-  });
+  // One shared mapping, so the page and the background scheduler always agree.
+  const backupConfig = (backup: BackupSettingsView) => backupConfigFromSettings(backup);
 
   const runProbe = async (kind: DeviceProbeKind) => {
     setProbing(kind);
@@ -175,7 +184,11 @@ export function SettingsPage() {
     }
   };
 
-  const restoreLatestBackup = async () => {
+  /**
+   * Restore is destructive, so it never runs straight from the button: the
+   * newest backup is resolved first and the operator has to confirm it.
+   */
+  const requestRestore = async () => {
     setBackupRunning("restore");
     try {
       const files = await resolveBackupService().list(backupConfig(snapshot.backup));
@@ -183,11 +196,31 @@ export function SettingsPage() {
         setLastBackupAction({ ok: false, message: "هیچ فایل پشتیبانی در مسیر تعیین‌شده پیدا نشد" });
         return;
       }
-      const outcome = await resolveBackupService().restore(files[0]!);
-      setLastBackupAction({ ...outcome, path: files[0] });
+      setRestoreConfirmation({ path: files[0]!, confirming: false });
     } finally {
       setBackupRunning(null);
     }
+  };
+
+  const confirmRestore = async () => {
+    const pending = restoreConfirmation;
+    if (pending === null) return;
+
+    setRestoreConfirmation({ ...pending, confirming: true });
+    const outcome = await resolveBackupService().restore(pending.path);
+    setLastBackupAction({ ...outcome, path: pending.path });
+    if (!outcome.ok) {
+      // Keep the dialog open so the failure stays visible next to the file.
+      setRestoreConfirmation({ ...pending, confirming: false });
+      return;
+    }
+
+    // The restored file is only picked up by a fresh process, so the app is
+    // relaunched instead of continuing against the replaced database.
+    setRestoreConfirmation({ ...pending, confirming: true, restored: true });
+    await new Promise(resolve => setTimeout(resolve, RESTORE_RELAUNCH_DELAY_MS));
+    await relaunchApplication();
+    setRestoreConfirmation(null);
   };
 
   /** One gateway (and therefore one SQLite connection) for load and saves. */
@@ -216,24 +249,21 @@ export function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Automatic backup only runs where a real file system exists (desktop shell). */
+  /**
+   * The page only reports the persisted schedule marker; the backup itself runs
+   * from the application-level scheduler, which works while any page is open.
+   */
   useEffect(() => {
-    if (status !== "ready" || !isTauriEnvironment()) return;
+    if (status !== "ready") return;
     let cancelled = false;
 
-    const run = async () => {
-      const state = await resolveBackupState();
-      const last = await state.loadLastBackupAt();
-      if (cancelled) return;
-      setLastBackupAt(last);
+    resolveBackupState()
+      .then(state => state.loadLastBackupAt())
+      .then(last => {
+        if (!cancelled) setLastBackupAt(last);
+      })
+      .catch(() => undefined);
 
-      const outcome = await resolveBackupService().runAutomatic(backupConfig(snapshot.backup), last);
-      if (cancelled || outcome === null) return;
-      setAutomaticBackup(outcome);
-      if (outcome.ok) await recordBackupCompletion(new Date().toISOString());
-    };
-
-    void run().catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -404,7 +434,7 @@ export function SettingsPage() {
 
       <section className="settings-manual-card" role="region" aria-label="بکاپ‌گیری دستی">
         <header><span className="settings-card-icon"><HardDriveDownload size={22} /></span><div><h2>بکاپ‌گیری دستی</h2><p>نسخه پشتیبان را به‌صورت دستی مدیریت کنید</p></div></header>
-        <div className="settings-manual-actions"><button type="button" className="settings-primary" disabled={backupRunning !== null} onClick={() => void runManualBackup()}><DatabaseBackup size={18} />{backupRunning === "manual" ? "در حال پشتیبان‌گیری…" : "گرفتن بکاپ"}</button><button type="button" disabled={backupRunning !== null} onClick={() => void restoreLatestBackup()}><HardDriveDownload size={18} />{backupRunning === "restore" ? "در حال بازیابی…" : "بازیابی بکاپ"}</button></div>
+        <div className="settings-manual-actions"><button type="button" className="settings-primary" disabled={backupRunning !== null} onClick={() => void runManualBackup()}><DatabaseBackup size={18} />{backupRunning === "manual" ? "در حال پشتیبان‌گیری…" : "گرفتن بکاپ"}</button><button type="button" disabled={backupRunning !== null} onClick={() => void requestRestore()}><HardDriveDownload size={18} />{backupRunning === "restore" ? "در حال بازیابی…" : "بازیابی بکاپ"}</button></div>
         <footer><CheckCircle2 size={16} /><span>{lastBackupAction ? lastBackupAction.message : "آخرین عملیات: بدون عملیات"}</span><b>{lastBackupAction ? (lastBackupAction.ok ? "بدون خطا" : "خطا") : "—"}</b></footer>
       </section>
     </section>
@@ -452,6 +482,22 @@ export function SettingsPage() {
         <footer>
           <button type="button" className="settings-primary" disabled={saving} onClick={() => void submitDialog()}>{saving ? "در حال ذخیره…" : "ذخیره"}</button>
           <button type="button" disabled={saving} onClick={() => { setDialog(null); setDialogIssues([]); }}>انصراف</button>
+        </footer>
+      </section>
+    </div> : null}
+
+    {restoreConfirmation ? <div className="settings-user-overlay">
+      <section className="settings-user-dialog" role="dialog" aria-modal="true" aria-label="تأیید بازیابی نسخه پشتیبان">
+        <header><h2>تأیید بازیابی نسخه پشتیبان</h2><p>پایگاه داده جاری با این فایل جایگزین می‌شود</p></header>
+        <div className="settings-user-fields">
+          <p dir="ltr">{restoreConfirmation.path}</p>
+          <p>قبل از جایگزینی، یک نسخه امنیتی از پایگاه داده جاری نگه داشته می‌شود و برنامه پس از بازیابی دوباره راه‌اندازی می‌شود.</p>
+          {restoreConfirmation.restored ? <p role="status">بازیابی انجام شد؛ برنامه در حال راه‌اندازی مجدد است…</p> : null}
+          {lastBackupAction && !lastBackupAction.ok ? <p className="settings-user-error" role="alert">{lastBackupAction.message}</p> : null}
+        </div>
+        <footer>
+          <button type="button" className="settings-primary" disabled={restoreConfirmation.confirming} onClick={() => void confirmRestore()}>{restoreConfirmation.confirming ? "در حال بازیابی…" : "بازیابی نسخه پشتیبان"}</button>
+          <button type="button" disabled={restoreConfirmation.confirming} onClick={() => setRestoreConfirmation(null)}>انصراف</button>
         </footer>
       </section>
     </div> : null}

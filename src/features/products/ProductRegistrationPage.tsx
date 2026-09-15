@@ -4,10 +4,13 @@ import { categoryAssets, referenceAssets } from "../../assets/reference";
 import { createDefaultCatalogGateway, type CatalogEntry, type CatalogGateway } from "../../services/catalog/catalog-gateway";
 import type { EntityId } from "../../types/persistence";
 import { displayData } from "../../services";
+import { weightMgFromGramText } from "../../services/database/weight";
 import { buildRegistrationCatalog, type RegistrationGroupOption } from "./catalog-form-service";
 import { validateProductForm, type ProductFormValidationIssue } from "./product-form-validation";
 import { productWorkflow } from "../../services/products/product-runtime";
 import type { ProductWorkflowPort } from "../../services/products/product-service";
+import { labelPrintWorkflow, type LabelPrintWorkflow } from "../../services/printer/print-runtime";
+import { scaleWorkflow, type ScaleWorkflow } from "../../services/scale/scale-workflow";
 import "./product-registration.css";
 
 const { initialFields, previewNotice } = displayData.getProductRegistration();
@@ -25,9 +28,28 @@ const defaultCategoryFor = (group: DefaultCategorySource | undefined) => {
   return children.find(category => category.name === approvedDefaultCategoryName) ?? children[0];
 };
 
+/** Form weight text to the integer milligram value the label and database use. */
+const weightMgFromFormText = (value: string): number | null => {
+  try {
+    return weightMgFromGramText(value.trim());
+  } catch {
+    return null;
+  }
+};
+
 type CatalogFeedback = Readonly<{ tone: "error" | "empty" | "info"; text: string }> | null;
 
-export function ProductRegistrationPage({ workflow = productWorkflow }: { workflow?: ProductWorkflowPort } = {}) {
+export type ProductRegistrationPageProps = {
+  workflow?: ProductWorkflowPort;
+  print?: LabelPrintWorkflow;
+  scale?: ScaleWorkflow;
+};
+
+export function ProductRegistrationPage({
+  workflow = productWorkflow,
+  print = labelPrintWorkflow,
+  scale = scaleWorkflow,
+}: ProductRegistrationPageProps = {}) {
   const catalogGateway: CatalogGateway = createDefaultCatalogGateway();
   const [catalog, setCatalog] = useState<CatalogEntry | null>(catalogGateway.peekCatalog?.() ?? null);
   const [catalogStatus, setCatalogStatus] = useState<"loading" | "ready" | "error">(catalog ? "ready" : "loading");
@@ -45,6 +67,9 @@ export function ProductRegistrationPage({ workflow = productWorkflow }: { workfl
   const [groupDraft, setGroupDraft] = useState("");
   const [makerEditorOpen, setMakerEditorOpen] = useState(false);
   const [makerDraft, setMakerDraft] = useState("");
+  const [readingScale, setReadingScale] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [scaleReading, setScaleReading] = useState<string | null>(null);
   const imageInput = useRef<HTMLInputElement>(null);
 
   const groups = catalog === null ? [] : buildRegistrationCatalog(catalog).groups;
@@ -169,6 +194,50 @@ export function ProductRegistrationPage({ workflow = productWorkflow }: { workfl
 
   const groupImageFor = (group: RegistrationGroupOption) => group.image ?? categoryAssets[0];
 
+  /**
+   * Sends a real print job for the values currently in the form. Failures are
+   * reported verbatim; nothing here ever claims a job that did not happen.
+   */
+  const printLabel = async (): Promise<string> => {
+    const outcome = await print.printProductLabel({
+      productName: fields.name,
+      productCode: fields.code,
+      purityPerMille: Number.parseInt(fields.purity, 10),
+      weightMg: weightMgFromFormText(fields.weight),
+      copies: 1,
+    });
+    return outcome.message;
+  };
+
+  /** The approved "دریافت از ترازو" action: a settled reading fills the field. */
+  const readScaleWeight = async () => {
+    if (readingScale) return;
+    setReadingScale(true);
+    try {
+      const outcome = await scale.readStableWeight();
+      if (!outcome.ok) {
+        // A failed read must never overwrite a value the operator already has.
+        setNotice(`خواندن از ترازو ناموفق بود: ${outcome.message}`);
+        return;
+      }
+      updateField("weight", outcome.gramsText);
+      setScaleReading(`${outcome.gramsText} g`);
+      setNotice(`وزن پایدار از ترازو ثبت شد: ${outcome.gramsText} گرم`);
+    } finally {
+      setReadingScale(false);
+    }
+  };
+
+  /** The approved "چاپ" action: prints the current form without persisting it. */
+  const printOnly = async () => {
+    setPrinting(true);
+    try {
+      setNotice(await printLabel());
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   const saveProduct = async (action: "ثبت" | "چاپ و ثبت") => {
     setSaving(true);
     try {
@@ -187,13 +256,18 @@ export function ProductRegistrationPage({ workflow = productWorkflow }: { workfl
         mainCategoryId: (selectedCategory?.id ?? null) as EntityId | null,
         workshopId: (workshops.find(workshop => workshop.name === fields.maker)?.id ?? null) as EntityId | null,
       });
-      // "چاپ و ثبت" saves the product, but no print job is sent from this form yet;
-      // the notice must not claim that a label was printed.
-      setNotice(result.persisted
-        ? action === "چاپ و ثبت"
-          ? "محصول ثبت شد؛ ارسال به چاپگر در این نسخه فعال نیست."
-          : "ثبت محصول با موفقیت انجام شد."
-        : `${action} — ${previewNotice}`);
+      if (!result.persisted) {
+        setNotice(`${action} — ${previewNotice}`);
+        return;
+      }
+      if (action === "ثبت") {
+        setNotice("ثبت محصول با موفقیت انجام شد.");
+        return;
+      }
+
+      // "چاپ و ثبت" persists first, then prints; both outcomes are reported.
+      const printMessage = await printLabel();
+      setNotice(`محصول ثبت شد. ${printMessage}`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "ثبت محصول انجام نشد.");
     } finally {
@@ -258,7 +332,7 @@ export function ProductRegistrationPage({ workflow = productWorkflow }: { workfl
               <div className="registration-measurements">
                 <section className="registration-weight registration-panel" aria-label="وزن محصول">
                   <label className="registration-field" htmlFor="registration-weight"><span>وزن (گرم)</span></label>
-                  <div className="registration-scale-input"><input id="registration-weight" aria-label="وزن (گرم)" inputMode="decimal" dir="ltr" value={fields.weight} onChange={event => updateField("weight", event.target.value)} /><button type="button" disabled title="فقط نمایشی؛ ترازو متصل نیست"><ArrowUp size={18} />دریافت از ترازو</button></div>
+                  <div className="registration-scale-input"><input id="registration-weight" aria-label="وزن (گرم)" inputMode="decimal" dir="ltr" value={fields.weight} onChange={event => updateField("weight", event.target.value)} /><button type="button" disabled={readingScale} title="خواندن وزن پایدار از ترازوی متصل" onClick={() => void readScaleWeight()}><ArrowUp size={18} />{readingScale ? "در حال خواندن…" : "دریافت از ترازو"}</button></div>
                   <label className="registration-field registration-manual-weight"><span>وزن نگین (گرم)</span><input inputMode="decimal" dir="ltr" value={fields.manualWeight} onChange={event => updateField("manualWeight", event.target.value)} /></label>
                 </section>
                 <section className="registration-specifications registration-panel" aria-label="مشخصات محصول">
@@ -294,7 +368,7 @@ export function ProductRegistrationPage({ workflow = productWorkflow }: { workfl
             <div className="registration-inventory registration-panel"><label><span><b>وضعیت موجودی</b><small>محصول پس از ثبت به موجودی افزوده شود</small></span><input type="checkbox" aria-label="وضعیت موجودی" checked={inInventory} onChange={event => setInInventory(event.target.checked)} /></label></div>
           </div>
           <div className="registration-actions" role="group" aria-label="عملیات محصول">
-            <button type="button" className="registration-print" onClick={() => submitAction(() => setNotice(`چاپ — ${previewNotice}`))}>چاپ<Printer size={23} /></button>
+            <button type="button" className="registration-print" disabled={printing} onClick={() => submitAction(() => void printOnly())}>چاپ<Printer size={23} /></button>
             <button type="button" className="registration-save" disabled={saving} onClick={() => submitAction(() => void saveProduct("ثبت"))}>ثبت<Save size={22} /></button>
             <button type="button" className="registration-print-save" disabled={saving} onClick={() => submitAction(() => void saveProduct("چاپ و ثبت"))}>چاپ و ثبت<PrinterCheck size={24} /></button>
             <button type="button" className="registration-clear" onClick={clearForm}>پاک کردن فرم<Undo2 size={19} /></button>
@@ -307,7 +381,7 @@ export function ProductRegistrationPage({ workflow = productWorkflow }: { workfl
 
       <aside className="registration-devices" aria-label="وضعیت دستگاه‌ها">
         <h2><ChevronsDown size={15} />وضعیت دستگاه‌ها</h2>
-        <section className="registration-device-card"><h3><Scale />ترازو دیجیتال</h3><p className="registration-connected">متصل <i /></p><span>وزن پایدار</span><strong className="registration-live-weight" dir="ltr">4.385 g</strong><button type="button" disabled>کالیبره<Crosshair size={17} /></button></section>
+        <section className="registration-device-card"><h3><Scale />ترازو دیجیتال</h3><p className="registration-connected">{scaleReading === null ? "آماده خواندن" : "متصل"} <i /></p><span>{scaleReading === null ? "وزن پایدار ثبت نشده" : "آخرین وزن پایدار"}</span><strong className="registration-live-weight" dir="ltr">{scaleReading ?? "—"}</strong><button type="button" disabled>کالیبره<Crosshair size={17} /></button></section>
         <section className="registration-device-card"><h3><Printer />چاپگر لیبل</h3><p className="registration-connected">متصل <i /></p><span dir="ltr">Zebra ZD421</span><button type="button" disabled>تنظیمات چاپگر<ChevronRight size={17} /></button></section>
         <section className="registration-device-card"><h3><Database />پایگاه داده</h3><p className="registration-connected">متصل <i /></p><span dir="ltr">SQL Server<br />Database_Main</span><button type="button" disabled>آزمایش اتصال<ChevronRight size={17} /></button></section>
         <small className="registration-device-disclaimer">وضعیت دستگاه‌ها صرفاً نمایشی است</small>

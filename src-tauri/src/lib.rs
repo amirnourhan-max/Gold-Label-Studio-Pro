@@ -14,6 +14,7 @@ pub fn run() {
             hardware::backup_list,
             hardware::backup_validate,
             hardware::restore_database,
+            hardware::relaunch_app,
             hardware::serial_list,
             hardware::serial_open,
             hardware::serial_read,

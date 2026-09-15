@@ -6,6 +6,8 @@ import {
 import { categoryAssets, referenceAssets } from "../../assets/reference";
 import type { PackagingFeedbackEntry, PackagingFeedbackView, PackagingSessionView } from "../../services/packaging/packaging-contract";
 import { packagingGateway } from "../../services/packaging/packaging-gateway";
+import { weightMgFromGramText } from "../../services/database/weight";
+import { labelPrintWorkflow, type LabelPrintWorkflow } from "../../services/printer/print-runtime";
 import "./packaging-page.css";
 
 type PackagingPhase = "loading" | "ready" | "error";
@@ -20,13 +22,23 @@ const describeError = (error: unknown, fallback: string): string => {
 
 const noFeedback: PackagingFeedbackView = { accepted: null, error: null };
 
-export function PackagingPage() {
+const weightMgOrZero = (grams: string | undefined): number => {
+  try {
+    return weightMgFromGramText((grams ?? "").replace(/[^\d.]/g, ""));
+  } catch {
+    return 0;
+  }
+};
+
+export function PackagingPage({ print = labelPrintWorkflow }: { print?: LabelPrintWorkflow } = {}) {
   const [session, setSession] = useState<PackagingSessionView | null>(null);
   const [phase, setPhase] = useState<PackagingPhase>("loading");
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState<PackagingFeedbackEntry | null>(null);
   const [manualCode, setManualCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [printNotice, setPrintNotice] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -104,6 +116,29 @@ export function PackagingPage() {
     }
   };
 
+  /** Sends a real package label job for the open package through PrinterService. */
+  const printPackageLabel = async () => {
+    if (printing) return;
+
+    const current = session;
+    if (current === null || current.packageId === null) {
+      setPrintNotice("برای چاپ لیبل بسته، ابتدا یک بسته جدید ایجاد کنید");
+      return;
+    }
+
+    setPrinting(true);
+    try {
+      const outcome = await print.printPackageLabel({
+        packageCode: current.summary.packageCode,
+        itemCount: current.summary.itemCount,
+        totalWeightMg: weightMgOrZero(current.summary.totalWeightGrams),
+      });
+      setPrintNotice(outcome.message);
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   const feedback = useMemo<PackagingFeedbackView>(() => {
     const base = session?.feedback ?? noFeedback;
 
@@ -151,9 +186,10 @@ export function PackagingPage() {
         <div className="packaging-actions" role="group" aria-label="عملیات بسته">
           <button type="button" className="create" onClick={() => void runAction(() => packagingGateway.createPackage())}><PackagePlus size={18} />ایجاد بسته جدید</button>
           <button type="button" className="finish" onClick={() => void runAction(() => packagingGateway.completePackage())}><CheckCircle2 size={18} />پایان بسته‌بندی</button>
-          <button type="button"><Printer size={18} />چاپ لیبل بسته</button>
+          <button type="button" disabled={printing} onClick={() => void printPackageLabel()}><Printer size={18} />چاپ لیبل بسته</button>
           <button type="button" className="remove" onClick={() => void runAction(() => packagingGateway.removeLastItem())}><Trash2 size={18} />حذف آخرین اسکن</button>
         </div>
+        {printNotice !== null && <p className="packaging-print-notice" role="status">{printNotice}</p>}
 
         <section className="packaging-table-card">
           <header><h2>لیست اقلام اسکن شده</h2><span>{itemCountLabel}</span></header>
@@ -198,7 +234,7 @@ export function PackagingPage() {
           <div className="package-label-art">
             <img src={referenceAssets.packageLabel} alt={`لیبل بسته ${packageCode}`} />
           </div>
-          <button type="button"><Printer size={18} />چاپ لیبل بسته</button>
+          <button type="button" disabled={printing} onClick={() => void printPackageLabel()}><Printer size={18} />چاپ لیبل بسته</button>
         </section>
       </aside>
     </main>

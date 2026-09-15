@@ -70,18 +70,21 @@ describe("approved product registration screen", () => {
     expect(label).toHaveAttribute("src", original);
   });
 
-  it("shows illustrative device states with no operational device controls", () => {
+  it("never claims a device reading before the scale has answered", () => {
     render(<ProductRegistrationPage />);
     const rail = screen.getByRole("complementary", { name: "وضعیت دستگاه‌ها" });
     for (const name of ["ترازو دیجیتال", "چاپگر لیبل", "پایگاه داده"]) {
       expect(within(rail).getByRole("heading", { name })).toBeInTheDocument();
     }
-    expect(within(rail).getAllByText("متصل")).toHaveLength(3);
-    expect(within(rail).getByText("4.385 g")).toBeInTheDocument();
+    // The scale card only reports a reading once one was actually received.
+    expect(within(rail).getByText("آماده خواندن")).toBeInTheDocument();
+    expect(within(rail).getByText("وزن پایدار ثبت نشده")).toBeInTheDocument();
+    expect(within(rail).queryByText("4.385 g")).not.toBeInTheDocument();
     for (const name of ["کالیبره", "تنظیمات چاپگر", "آزمایش اتصال"]) {
       expect(within(rail).getByRole("button", { name })).toBeDisabled();
     }
-    expect(screen.getByRole("button", { name: "دریافت از ترازو" })).toBeDisabled();
+    // The approved scale action is wired to the real scale workflow.
+    expect(screen.getByRole("button", { name: "دریافت از ترازو" })).toBeEnabled();
     expect(screen.getByText(/هیچ اطلاعاتی ذخیره یا چاپ نمی‌شود/)).toBeInTheDocument();
   });
 

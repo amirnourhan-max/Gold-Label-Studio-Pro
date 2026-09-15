@@ -2,6 +2,10 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsPage } from "./SettingsPage";
 
+const relaunchApplication = vi.hoisted(() => vi.fn(async () => true));
+
+vi.mock("../../services/backup/app-relaunch", () => ({ relaunchApplication }));
+
 const probe = vi.hoisted(() => vi.fn(async () => ({ ok: true, message: "ترازو پاسخ داد (8.34 گرم)" })));
 const backup = vi.hoisted(() => vi.fn(async () => ({ ok: true, message: "پشتیبان‌گیری با موفقیت انجام شد", path: "D:\\b.db" })));
 const listBackups = vi.hoisted(() => vi.fn(async (): Promise<readonly string[]> => []));
@@ -37,6 +41,7 @@ beforeEach(() => {
   restore.mockClear();
   runAutomatic.mockClear();
   recordBackupAt.mockClear();
+  relaunchApplication.mockClear();
 });
 
 afterEach(cleanup);
@@ -81,13 +86,48 @@ describe("settings hardware actions", () => {
     expect(restore).not.toHaveBeenCalled();
   });
 
-  it("validates and restores the newest available backup", async () => {
+  it("restores the newest backup only after an explicit confirmation", async () => {
     listBackups.mockResolvedValueOnce(["D:\\GoldLabel\\Backups\\newest.db", "D:\\GoldLabel\\Backups\\older.db"]);
     render(<SettingsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "بازیابی بکاپ" }));
 
+    // Nothing is replaced until the operator confirms the file to restore.
+    const dialog = await screen.findByRole("dialog", { name: "تأیید بازیابی نسخه پشتیبان" });
+    expect(restore).not.toHaveBeenCalled();
+    expect(within(dialog).getByText("D:\\GoldLabel\\Backups\\newest.db")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "بازیابی نسخه پشتیبان" }));
+
     await waitFor(() => expect(restore).toHaveBeenCalledWith("D:\\GoldLabel\\Backups\\newest.db"));
-    expect(await screen.findByText("بازگردانی با موفقیت انجام شد")).toBeInTheDocument();
+    expect(await within(dialog).findByText(/برنامه در حال راه‌اندازی مجدد است/)).toBeInTheDocument();
+    // The app restarts itself after a short delay so the result stays readable.
+    await waitFor(() => expect(relaunchApplication).toHaveBeenCalledTimes(1), { timeout: 5_000 });
+  });
+
+  it("cancels a restore without touching the database", async () => {
+    listBackups.mockResolvedValueOnce(["D:\\GoldLabel\\Backups\\newest.db"]);
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "بازیابی بکاپ" }));
+    const dialog = await screen.findByRole("dialog", { name: "تأیید بازیابی نسخه پشتیبان" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "انصراف" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "تأیید بازیابی نسخه پشتیبان" })).not.toBeInTheDocument());
+    expect(restore).not.toHaveBeenCalled();
+    expect(relaunchApplication).not.toHaveBeenCalled();
+  });
+
+  it("does not relaunch the app when the restore itself fails", async () => {
+    listBackups.mockResolvedValueOnce(["D:\\GoldLabel\\Backups\\newest.db"]);
+    restore.mockResolvedValueOnce({ ok: false, message: "بازگردانی ناموفق بود: قفل است" });
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "بازیابی بکاپ" }));
+    const dialog = await screen.findByRole("dialog", { name: "تأیید بازیابی نسخه پشتیبان" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "بازیابی نسخه پشتیبان" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("بازگردانی ناموفق بود");
+    expect(relaunchApplication).not.toHaveBeenCalled();
   });
 });

@@ -24,5 +24,18 @@
     }],
     "security":{"csp":null}
   },
-  "bundle":{"active":false}
+  "bundle":{
+    "active":true,
+    "targets":["nsis"],
+    "icon":["icons/icon.ico"],
+    "publisher":"AmirNourhan",
+    "copyright":"© 2026 AmirNourhan",
+    "category":"Business",
+    "shortDescription":"سیستم جامع لیبل‌زنی و ردیابی طلا و جواهر",
+    "longDescription":"Gold Label Studio Pro — ثبت محصولات، طراحی و چاپ لیبل QR، بسته‌بندی، مرجوعی، مدیریت دستگاه‌ها و پشتیبان‌گیری محلی.",
+    "homepage":"https://github.com/amirnourhan-max/Gold-Label-Studio-Pro",
+    "windows":{
+      "webviewInstallMode":{"type":"downloadBootstrapper","silent":true}
+    }
+  }
 }

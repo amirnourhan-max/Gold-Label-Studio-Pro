@@ -129,8 +129,8 @@ jobs:
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
-      - name: Tauri Windows build
-        run: npm run tauri build -- --no-bundle
+      - name: Tauri Windows release build + NSIS installer
+        run: npm run tauri build -- --bundles nsis
 
       - name: Smoke packaged executable
         shell: powershell
@@ -147,7 +147,68 @@ jobs:
           if ($p.MainWindowHandle -eq 0) { throw "Main window handle was not created" }
           Stop-Process -Id $p.Id -Force
 
+      - name: Install NSIS installer and smoke test the installed app
+        shell: powershell
+        run: |
+          $setup = Get-ChildItem "src-tauri\target\release\bundle\nsis\*.exe" | Select-Object -First 1
+          if (-not $setup) { throw "NSIS installer was not produced" }
+          Write-Host "Installing $($setup.FullName)"
+
+          $install = Start-Process -FilePath $setup.FullName -ArgumentList "/S" -PassThru -Wait
+          if ($install.ExitCode -ne 0) { throw "Installer exited with code $($install.ExitCode)" }
+          Start-Sleep -Seconds 5
+
+          $installDir = Join-Path $env:LOCALAPPDATA "Gold Label Studio Pro"
+          $installed = Get-ChildItem "$installDir\*.exe" | Where-Object { $_.Name -ne "uninstall.exe" } | Select-Object -First 1
+          if (-not $installed) { throw "Installed executable not found in $installDir" }
+          Write-Host "Installed executable: $($installed.FullName)"
+
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Gold Label Studio Pro")) {
+            Write-Host "Start Menu folder not found under the current-user programs path"
+          }
+
+          # User data sentinel: an uninstall must never destroy the database or backups.
+          $appData = Join-Path $env:APPDATA "com.amirnourhan.goldlabelstudiopro"
+          New-Item -ItemType Directory -Force -Path $appData | Out-Null
+          $sentinel = Join-Path $appData "ci-user-data-sentinel.txt"
+          Set-Content -Path $sentinel -Value "keep me"
+
+          $app = Start-Process -FilePath $installed.FullName -PassThru
+          Start-Sleep -Seconds 8
+          if ($app.HasExited) { throw "Installed application exited during the smoke launch" }
+          if ($app.MainWindowHandle -eq 0) {
+            Start-Sleep -Seconds 4
+            $app.Refresh()
+          }
+          if ($app.MainWindowHandle -eq 0) { throw "Installed application did not create a main window" }
+          Stop-Process -Id $app.Id -Force
+          Start-Sleep -Seconds 2
+
+          $database = Join-Path $appData "gold-label-studio-pro.db"
+          if (Test-Path $database) { Write-Host "Installed app created its database in AppData" }
+          else { Write-Host "Database file not present yet in $appData (migrations may run on first write)" }
+
+          $uninstaller = Join-Path $installDir "uninstall.exe"
+          if (!(Test-Path $uninstaller)) { throw "Uninstaller not found: $uninstaller" }
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList "/S" -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with code $($uninstall.ExitCode)" }
+          Start-Sleep -Seconds 5
+
+          if (Test-Path $installed.FullName) { throw "Uninstall left the application binary behind" }
+          Write-Host "Uninstall removed the application"
+
+          if (!(Test-Path $sentinel)) { throw "Uninstall destroyed user data in $appData" }
+          Write-Host "User data survived the uninstall"
+
+      - name: Upload Windows NSIS installer
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gold-Label-Studio-Pro-Windows-Setup-NSIS
+          path: src-tauri/target/release/bundle/nsis/*.exe
+
       - name: Upload Windows preview
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Gold-Label-Studio-Pro-React-Tauri-Preview

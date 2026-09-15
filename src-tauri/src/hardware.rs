@@ -179,6 +179,16 @@ pub fn restore_database(app: AppHandle, source: String) -> Result<String, String
     Ok("restore complete".to_string())
 }
 
+/// Restarts the application.
+///
+/// A restored database replaces the file the SQL plugin already has open, so
+/// its pooled connection keeps a stale page cache. The UI calls this after a
+/// successful restore instead of continuing to run against that connection.
+#[tauri::command]
+pub fn relaunch_app(app: AppHandle) {
+    app.request_restart();
+}
+
 #[tauri::command]
 pub fn serial_list() -> Result<Vec<String>, String> {
     serialport::available_ports()
