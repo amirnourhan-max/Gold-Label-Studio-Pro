@@ -11,13 +11,13 @@ export type LoginMode = "sign-in" | "first-run";
  * has no user with a password yet, so a fresh installation can create its first
  * administrator instead of locking itself out.
  */
-export function LoginPage({ mode = "sign-in" }: { mode?: LoginMode }) {
+export function LoginPage({ mode = "sign-in", initialError = null }: { mode?: LoginMode; initialError?: string | null }) {
   const { signIn, createFirstAdmin } = useAuthSession();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [busy, setBusy] = useState(false);
 
   const firstRun = mode === "first-run";

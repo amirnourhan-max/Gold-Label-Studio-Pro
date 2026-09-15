@@ -16,6 +16,18 @@ export type PasswordHasher = Readonly<{
   verify(password: string, stored: StoredPasswordHash): Promise<boolean>;
 }>;
 
+/**
+ * Raised when the platform WebCrypto implementation is missing. Password
+ * derivation needs a secure context, so this must surface as its own reason
+ * instead of looking like a wrong password or a database problem.
+ */
+export class CryptoUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CryptoUnavailableError";
+  }
+}
+
 export const PASSWORD_ALGORITHM = "pbkdf2-sha256";
 export const PASSWORD_VERSION = 1;
 /** OWASP-recommended PBKDF2-HMAC-SHA256 work factor. */
@@ -67,12 +79,26 @@ const parseHash = (value: string): Readonly<{ iterations: number; salt: Uint8Arr
  * the Tauri WebView and Node). Hashing and verification stay in the service
  * layer; only the derived digest and its metadata ever reach persistence.
  */
+/**
+ * Fail-closed stand-in used when the platform has no WebCrypto: hashing and
+ * verification both refuse, so nobody can be authenticated and no plaintext or
+ * weak digest is ever produced as a substitute.
+ */
+export const createUnavailablePasswordHasher = (reason: string): PasswordHasher => ({
+  hash: async () => {
+    throw new CryptoUnavailableError(reason);
+  },
+  verify: async () => {
+    throw new CryptoUnavailableError(reason);
+  },
+});
+
 export const createPasswordHasher = (options: HasherOptions = {}): PasswordHasher => {
   const iterations = options.iterations ?? DEFAULT_PBKDF2_ITERATIONS;
   const randomBytes = options.randomBytes
     ?? ((length: number) => globalThis.crypto.getRandomValues(new Uint8Array(length)));
   const subtle = options.subtle ?? globalThis.crypto?.subtle;
-  if (!subtle) throw new Error("WebCrypto SubtleCrypto API is unavailable");
+  if (!subtle) throw new CryptoUnavailableError("WebCrypto SubtleCrypto API is unavailable");
 
   const derive = async (password: string, salt: Uint8Array, rounds: number): Promise<Uint8Array> => {
     const key = await subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);

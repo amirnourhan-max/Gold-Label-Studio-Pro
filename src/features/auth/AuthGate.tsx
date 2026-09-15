@@ -11,7 +11,7 @@ import "./login-page.css";
  * login wall that could never be satisfied.
  */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { status, user, hasCredentials, preview } = useAuthSession();
+  const { status, user, hasCredentials, preview, unavailableReason } = useAuthSession();
 
   if (status === "loading") {
     return (
@@ -25,7 +25,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (preview) return <>{children}</>;
-  if (!hasCredentials) return <LoginPage mode="first-run" />;
-  if (!user) return <LoginPage mode="sign-in" />;
+  if (!hasCredentials) return <LoginPage mode="first-run" initialError={unavailableReason ?? null} />;
+  if (!user) return <LoginPage mode="sign-in" initialError={unavailableReason ?? null} />;
   return <>{children}</>;
 }

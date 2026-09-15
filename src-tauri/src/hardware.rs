@@ -8,8 +8,9 @@ use base64::Engine as _;
 use rusqlite::Connection;
 use tauri::{AppHandle, Manager};
 
+use crate::database::DATABASE_FILE_NAME;
+
 const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
-const DATABASE_FILE_NAME: &str = "gold-label-studio-pro.db";
 
 /// Open serial sessions, keyed by the id handed to the frontend. `SerialPort`
 /// already requires `Send`, so the mutex keeps the map shareable across the

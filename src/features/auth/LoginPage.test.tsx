@@ -18,11 +18,11 @@ const session = (overrides: Partial<AuthSessionValue> = {}): AuthSessionValue =>
   ...overrides,
 });
 
-const renderLogin = (value: AuthSessionValue, mode?: "sign-in" | "first-run") => {
+const renderLogin = (value: AuthSessionValue, mode?: "sign-in" | "first-run", initialError?: string) => {
   const wrap = (children: ReactNode) => (
     <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>
   );
-  return render(wrap(<LoginPage mode={mode} />));
+  return render(wrap(<LoginPage mode={mode} initialError={initialError} />));
 };
 
 const submit = (label: string | RegExp) =>
@@ -111,6 +111,12 @@ describe("login screen", () => {
         confirmation: "secret123",
       }),
     );
+  });
+
+  it("shows the unusable-database reason from the session before anything is submitted", () => {
+    renderLogin(session({ hasCredentials: false }), "first-run", "فایل پایگاه داده معتبر نیست");
+
+    expect(screen.getByTestId("login-error")).toHaveTextContent("فایل پایگاه داده معتبر نیست");
   });
 
   it("shows first-run validation feedback without creating a session", async () => {

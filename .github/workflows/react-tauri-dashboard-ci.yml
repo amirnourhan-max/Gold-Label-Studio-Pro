@@ -132,6 +132,62 @@ jobs:
       - name: Tauri Windows release build + NSIS installer
         run: npm run tauri build -- --bundles nsis
 
+      - name: Assert the release executable is a Windows GUI application
+        shell: powershell
+        run: |
+          $exe = "src-tauri\target\release\gold-label-studio-pro.exe"
+          if (!(Test-Path $exe)) { throw "Executable not found: $exe" }
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $peOffset = [System.BitConverter]::ToInt32($bytes, 0x3C)
+          if ([System.Text.Encoding]::ASCII.GetString($bytes, $peOffset, 4) -ne "PE$([char]0)$([char]0)") {
+            throw "Not a PE executable: $exe"
+          }
+          # Subsystem lives in the optional header: 2 = Windows GUI, 3 = console.
+          # A console subsystem binary opens a CMD window behind the app, and
+          # closing that window terminates the application.
+          $subsystem = [System.BitConverter]::ToUInt16($bytes, $peOffset + 24 + 68)
+          Write-Host "Release executable subsystem: $subsystem (2 = GUI)"
+          if ($subsystem -ne 2) {
+            throw "The release executable is not built as a Windows GUI application (subsystem $subsystem)"
+          }
+
+      - name: Verify the database initialises on a clean machine
+        shell: powershell
+        run: |
+          $exe = "src-tauri\target\release\gold-label-studio-pro.exe"
+          $appData = Join-Path $env:APPDATA "com.amirnourhan.goldlabelstudiopro"
+
+          # A completely fresh user-data directory is the first-run case a new
+          # installation faces on a real Windows machine.
+          Remove-Item -Recurse -Force $appData -ErrorAction SilentlyContinue
+
+          $report = Join-Path $env:TEMP "glsp-fresh-self-check.json"
+          Remove-Item $report -ErrorAction SilentlyContinue
+          $check = Start-Process -FilePath $exe -ArgumentList "--database-self-check=`"$report`"" -PassThru -Wait
+          if (Test-Path $report) { Get-Content $report | Write-Host }
+          if ($check.ExitCode -ne 0) { throw "The database self check failed with exit code $($check.ExitCode)" }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          if (-not $result.passed) { throw "The database self check did not pass: $($result.error)" }
+          if (-not $result.schema.createdFile) { throw "A fresh user-data directory should have created the database file" }
+          if ($result.schema.tablesPresent -ne $result.schema.tablesExpected) {
+            throw "Only $($result.schema.tablesPresent) of $($result.schema.tablesExpected) tables exist in the fresh database"
+          }
+          if (-not $result.insertedUser -or -not $result.userSurvivedReopen -or -not $result.cleanedUp) {
+            throw "The first administrator insert path failed in the packaged build"
+          }
+          $database = Join-Path $appData "gold-label-studio-pro.db"
+          if (!(Test-Path $database)) { throw "The application did not create its database in $appData" }
+
+          # Second run: an existing database must be reused, not recreated, so a
+          # database written by an earlier build keeps working.
+          $again = Join-Path $env:TEMP "glsp-existing-self-check.json"
+          Remove-Item $again -ErrorAction SilentlyContinue
+          $reuse = Start-Process -FilePath $exe -ArgumentList "--database-self-check=`"$again`"" -PassThru -Wait
+          if ($reuse.ExitCode -ne 0) { throw "The database self check failed on an existing database" }
+          $existing = Get-Content $again -Raw | ConvertFrom-Json
+          if (-not $existing.passed) { throw "The self check failed on an existing database: $($existing.error)" }
+          if ($existing.schema.createdFile) { throw "An existing database must be reused instead of recreated" }
+
       - name: Smoke packaged executable
         shell: powershell
         run: |
@@ -145,6 +201,14 @@ jobs:
             $p.Refresh()
           }
           if ($p.MainWindowHandle -eq 0) { throw "Main window handle was not created" }
+
+          # No console window may exist for the application process. A console
+          # subsystem build has conhost.exe attached as a child.
+          $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" -ErrorAction SilentlyContinue)
+          Write-Host "Child processes: $($children.Name -join ', ')"
+          if (@($children | Where-Object { $_.Name -eq "conhost.exe" }).Count -gt 0) {
+            throw "A console window was created for the packaged application"
+          }
           Stop-Process -Id $p.Id -Force
 
       - name: Install NSIS installer and smoke test the installed app
@@ -181,6 +245,26 @@ jobs:
           $sentinel = Join-Path $appData "ci-user-data-sentinel.txt"
           Set-Content -Path $sentinel -Value "keep me"
 
+          # The installed build must open the real database and store a first
+          # administrator, which is exactly what failed on a physical machine.
+          $report = Join-Path $env:TEMP "glsp-installed-self-check.json"
+          Remove-Item $report -ErrorAction SilentlyContinue
+          $check = Start-Process -FilePath $installed.FullName -ArgumentList "--database-self-check=`"$report`"" -PassThru -Wait
+          if (Test-Path $report) { Get-Content $report | Write-Host }
+          if ($check.ExitCode -ne 0) { throw "The installed database self check failed with exit code $($check.ExitCode)" }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          if (-not $result.passed) { throw "The installed database self check did not pass: $($result.error)" }
+          if ($result.schema.tablesPresent -ne $result.schema.tablesExpected) {
+            throw "The installed database is missing tables: $($result.schema.tablesPresent)/$($result.schema.tablesExpected)"
+          }
+          if (-not $result.insertedUser -or -not $result.userSurvivedReopen -or -not $result.cleanedUp) {
+            throw "The installed build could not store and reload a user row"
+          }
+
+          $database = Join-Path $appData "gold-label-studio-pro.db"
+          if (!(Test-Path $database)) { throw "The installed application did not create its database in $appData" }
+          Write-Host "Installed application prepared its database at $database"
+
           $app = Start-Process -FilePath $installed.FullName -PassThru
           Start-Sleep -Seconds 8
           if ($app.HasExited) { throw "Installed application exited during the smoke launch" }
@@ -189,12 +273,14 @@ jobs:
             $app.Refresh()
           }
           if ($app.MainWindowHandle -eq 0) { throw "Installed application did not create a main window" }
+
+          $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($app.Id)" -ErrorAction SilentlyContinue)
+          Write-Host "Installed child processes: $($children.Name -join ', ')"
+          if (@($children | Where-Object { $_.Name -eq "conhost.exe" }).Count -gt 0) {
+            throw "The installed application created a console window"
+          }
           Stop-Process -Id $app.Id -Force
           Start-Sleep -Seconds 2
-
-          $database = Join-Path $appData "gold-label-studio-pro.db"
-          if (Test-Path $database) { Write-Host "Installed app created its database in AppData" }
-          else { Write-Host "Database file not present yet in $appData (migrations may run on first write)" }
 
           $uninstaller = Join-Path $installDir "uninstall.exe"
           if (!(Test-Path $uninstaller)) { throw "Uninstaller not found: $uninstaller" }

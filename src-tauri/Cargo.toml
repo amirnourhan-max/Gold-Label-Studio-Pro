@@ -1,6 +1,6 @@
 [package]
 name = "gold-label-studio-pro"
-version = "0.2.0"
+version = "0.2.1"
 description = "Gold Label Studio Pro"
 authors = ["AmirNourhan"]
 edition = "2021"

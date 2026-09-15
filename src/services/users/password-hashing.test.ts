@@ -1,5 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { createPasswordHasher, PASSWORD_ALGORITHM, PASSWORD_VERSION } from "./password-hashing";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createPasswordHasher,
+  createUnavailablePasswordHasher,
+  CryptoUnavailableError,
+  PASSWORD_ALGORITHM,
+  PASSWORD_VERSION,
+} from "./password-hashing";
+
+afterEach(() => vi.unstubAllGlobals());
 
 const hasher = createPasswordHasher({ iterations: 1_000 });
 
@@ -38,6 +46,26 @@ describe("password hashing", () => {
     expect(await hasher.verify("GoldLabel1404", { ...stored, algorithm: "argon2id" })).toBe(false);
     expect(await hasher.verify("GoldLabel1404", { ...stored, version: 2 })).toBe(false);
     expect(await hasher.verify("GoldLabel1404", { ...stored, hash: "not-a-valid-hash" })).toBe(false);
+  });
+
+  it("reports a missing platform crypto provider instead of a wrong password", async () => {
+    const cryptoWithoutSubtle = { getRandomValues: (array: Uint8Array) => array };
+    vi.stubGlobal("crypto", cryptoWithoutSubtle);
+
+    expect(() => createPasswordHasher()).toThrow(CryptoUnavailableError);
+  });
+
+  it("refuses to hash or verify when no crypto provider is available", async () => {
+    const unavailable = createUnavailablePasswordHasher("WebCrypto SubtleCrypto API is unavailable");
+
+    await expect(unavailable.hash("GoldLabel1404")).rejects.toBeInstanceOf(CryptoUnavailableError);
+    await expect(
+      unavailable.verify("GoldLabel1404", {
+        hash: "pbkdf2-sha256$v1$1000$c2FsdA==$ZGlnZXN0",
+        algorithm: PASSWORD_ALGORITHM,
+        version: PASSWORD_VERSION,
+      }),
+    ).rejects.toBeInstanceOf(CryptoUnavailableError);
   });
 
   it("honours the configured work factor", async () => {

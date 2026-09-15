@@ -54,6 +54,12 @@ describe("auth gate", () => {
     expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
   });
 
+  it("explains an unusable database instead of showing a silent first-run form", () => {
+    renderGate(session({ hasCredentials: false, user: null, unavailableReason: "فایل پایگاه داده معتبر نیست" }));
+
+    expect(screen.getByTestId("login-error")).toHaveTextContent("فایل پایگاه داده معتبر نیست");
+  });
+
   it("lets an authenticated user into the workspace", () => {
     renderGate(
       session({

@@ -8,9 +8,19 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { PersistenceFailure, persistenceFailureMessage } from "../../services/database/persistence-failure";
 import type { AuthenticatedUser } from "../../services/users/auth-service";
-import { bootstrapAuthSession, type SessionBootstrapResult } from "../../services/users/session-bootstrap";
+import { CryptoUnavailableError } from "../../services/users/password-hashing";
+import {
+  bootstrapAuthSession,
+  CRYPTO_UNAVAILABLE_MESSAGE,
+  type SessionBootstrapResult,
+} from "../../services/users/session-bootstrap";
 import { createDefaultUserService } from "../../services/users/user-gateway";
+import { isTauriEnvironment } from "../../services/hardware/hardware-environment";
+
+/** Re-exported so the login screen and its tests share one message contract. */
+export { CRYPTO_UNAVAILABLE_MESSAGE };
 
 export type SignInFailureReason = "invalid-credentials" | "inactive" | "error";
 
@@ -30,6 +40,11 @@ export type AuthSessionValue = Readonly<{
   user: AuthenticatedUser | null;
   hasCredentials: boolean;
   preview: boolean;
+  /**
+   * Honest reason when persistence or platform crypto is unusable, so the login
+   * screen explains the real problem instead of failing generically on submit.
+   */
+  unavailableReason?: string | null;
   signIn(username: string, password: string): Promise<SignInResult>;
   signOut(): void;
   createFirstAdmin(input: CreateFirstAdminInput): Promise<SignInResult>;
@@ -48,6 +63,18 @@ const failure = (reason: SignInFailureReason): SignInResult => ({
 });
 
 /**
+ * Classifies a thrown failure so the screen reports the real cause: a generic
+ * "database connection" message hid crypto and schema problems entirely.
+ */
+export const messageForAuthFailure = (error: unknown): string => {
+  if (error instanceof CryptoUnavailableError) return CRYPTO_UNAVAILABLE_MESSAGE;
+  if (error instanceof PersistenceFailure) return persistenceFailureMessage(error.code);
+  return failureMessages.error;
+};
+
+const messageFor = messageForAuthFailure;
+
+/**
  * Standalone default so components rendered without the provider (unit tests,
  * isolated previews) behave as a signed-out session instead of throwing.
  */
@@ -56,6 +83,7 @@ const signedOutSession: AuthSessionValue = {
   user: null,
   hasCredentials: false,
   preview: true,
+  unavailableReason: null,
   signIn: async () => failure("error"),
   signOut: () => {},
   createFirstAdmin: async () => failure("error"),
@@ -72,6 +100,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [hasCredentials, setHasCredentials] = useState(false);
   const [preview, setPreview] = useState(true);
+  const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -81,10 +110,19 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         bootstrap.current = result;
         setHasCredentials(result.hasCredentials);
         setPreview(result.preview);
+        setUnavailableReason(result.unavailableReason);
         setStatus("ready");
       })
-      .catch(() => {
-        if (active) setStatus("ready");
+      .catch((error: unknown) => {
+        if (!active) return;
+        // The bootstrap must never resolve into an unlocked workspace: keep the
+        // gate closed and explain the failure instead of showing it as a preview.
+        console.error("[auth] the session could not be bootstrapped", error);
+        const desktop = isTauriEnvironment();
+        setPreview(!desktop);
+        setHasCredentials(false);
+        setUnavailableReason(desktop ? messageFor(error) : null);
+        setStatus("ready");
       });
     return () => {
       active = false;
@@ -101,8 +139,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         return { ok: true };
       }
       return failure(outcome.status === "inactive" ? "inactive" : "invalid-credentials");
-    } catch {
-      return failure("error");
+    } catch (error) {
+      console.error("[auth] sign in failed", error);
+      return { ok: false, reason: "error", message: messageFor(error) };
     }
   }, []);
 
@@ -131,14 +170,15 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       }
       setHasCredentials(true);
       return signIn(input.username, input.password);
-    } catch {
-      return failure("error");
+    } catch (error) {
+      console.error("[auth] creating the first administrator failed", error);
+      return { ok: false, reason: "error", message: messageFor(error) };
     }
   }, [signIn]);
 
   const value = useMemo<AuthSessionValue>(
-    () => ({ status, user, hasCredentials, preview, signIn, signOut, createFirstAdmin }),
-    [status, user, hasCredentials, preview, signIn, signOut, createFirstAdmin],
+    () => ({ status, user, hasCredentials, preview, unavailableReason, signIn, signOut, createFirstAdmin }),
+    [status, user, hasCredentials, preview, unavailableReason, signIn, signOut, createFirstAdmin],
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
