@@ -163,9 +163,17 @@ jobs:
           if (-not $installed) { throw "Installed executable not found in $installDir" }
           Write-Host "Installed executable: $($installed.FullName)"
 
-          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Gold Label Studio Pro")) {
-            Write-Host "Start Menu folder not found under the current-user programs path"
-          }
+          # Start Menu entry: silent installs create the shortcut directly in Programs,
+          # interactive installs create it inside the configured folder.
+          $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
+          $shortcut = @(Get-ChildItem -Path $startMenu -Recurse -Filter "*.lnk" -ErrorAction SilentlyContinue |
+            Where-Object { $_.BaseName -like "Gold Label Studio Pro*" })
+          if ($shortcut.Count -eq 0) { throw "Start Menu shortcut was not created under $startMenu" }
+          Write-Host "Start Menu shortcut: $($shortcut[0].FullName)"
+
+          $desktopShortcut = Get-Item (Join-Path ([Environment]::GetFolderPath("Desktop")) "Gold Label Studio Pro.lnk") -ErrorAction SilentlyContinue
+          if ($desktopShortcut) { Write-Host "Desktop shortcut: $($desktopShortcut.FullName)" }
+          else { Write-Host "Desktop shortcut was not created (optional)" }
 
           # User data sentinel: an uninstall must never destroy the database or backups.
           $appData = Join-Path $env:APPDATA "com.amirnourhan.goldlabelstudiopro"
@@ -199,6 +207,16 @@ jobs:
 
           if (!(Test-Path $sentinel)) { throw "Uninstall destroyed user data in $appData" }
           Write-Host "User data survived the uninstall"
+
+      - name: Tauri MSI installer (secondary artifact)
+        run: npm run tauri build -- --bundles msi
+
+      - name: Upload Windows MSI installer
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gold-Label-Studio-Pro-Windows-Setup-MSI
+          path: src-tauri/target/release/bundle/msi/*.msi
 
       - name: Upload Windows NSIS installer
         if: always()
