@@ -21,6 +21,16 @@ export const configureDatabaseConnection = async <Client extends SqlClient>(clie
   return client;
 };
 
+/**
+ * Best-effort: the desktop layer appends this to the diagnostic log so an
+ * installed build always leaves the real reason on disk. A logging failure must
+ * never replace the failure the user is looking at.
+ */
+const recordDiagnostic = (detail: string): void => {
+  if (!isTauriEnvironment()) return;
+  void invoke("record_persistence_diagnostic", { detail }).catch(() => undefined);
+};
+
 const describe = (status: PersistenceStatusReport): string => {
   const parts = [status.error, ...status.warnings].filter(
     (part): part is string => typeof part === "string" && part.length > 0,
@@ -47,12 +57,10 @@ export const preparePersistence = (): Promise<void> => {
       // The real reason is the only clue an installed build leaves behind, so it
       // is logged and carried on the error instead of being replaced by a
       // generic message.
+      const detail = error instanceof Error ? error.message : String(error);
       console.error("[persistence] the desktop database check could not run", error);
-      throw new PersistenceFailure(
-        "unknown",
-        persistenceFailureMessage("unknown"),
-        error instanceof Error ? error.message : String(error),
-      );
+      recordDiagnostic(`the database status check failed: ${detail}`);
+      throw new PersistenceFailure("unknown", persistenceFailureMessage("unknown"), detail);
     }
 
     console.info(
@@ -63,12 +71,10 @@ export const preparePersistence = (): Promise<void> => {
     if (status.initialized) return;
 
     const detail = describe(status) || "the database could not be prepared";
+    const code = toPersistenceFailureCode(status.errorCode);
     console.error(`[persistence] ${status.errorCode ?? "unknown"}: ${detail}`);
-    throw new PersistenceFailure(
-      toPersistenceFailureCode(status.errorCode),
-      "ارتباط با پایگاه داده برقرار نشد",
-      detail,
-    );
+    recordDiagnostic(`status reports ${code}: ${detail}`);
+    throw new PersistenceFailure(code, "ارتباط با پایگاه داده برقرار نشد", detail);
   })();
 
   const attempt = preparation;
@@ -90,6 +96,7 @@ export const openPersistenceDatabase = async (): Promise<SqlClient> => {
     if (error instanceof PersistenceFailure) throw error;
     const detail = error instanceof Error ? error.message : String(error);
     console.error(`[persistence] opening ${persistenceDatabaseUrl} failed`, error);
+    recordDiagnostic(`opening ${persistenceDatabaseUrl} failed: ${detail}`);
     throw new PersistenceFailure("load-failed", persistenceFailureMessage("load-failed"), detail);
   }
 };

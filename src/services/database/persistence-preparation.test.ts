@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PersistenceFailure, type PersistenceStatusReport } from "./persistence-failure";
 
 const invoke = vi.fn();
 const load = vi.fn();
+const diagnostics: string[] = [];
+let statusResponses: PersistenceStatusReport[] = [];
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: (...args: unknown[]) => invoke(...args) }));
 vi.mock("@tauri-apps/plugin-sql", () => ({ default: { load: (...args: unknown[]) => load(...args) } }));
@@ -39,6 +41,20 @@ const failed = (errorCode: string, error: string): PersistenceStatusReport => ({
   error,
 });
 
+beforeEach(() => {
+  statusResponses = [];
+  diagnostics.length = 0;
+  invoke.mockImplementation(async (command: string, args?: { detail?: string }) => {
+    if (command === "record_persistence_diagnostic") {
+      diagnostics.push(args?.detail ?? "");
+      return undefined;
+    }
+    const next = statusResponses.shift();
+    if (!next) throw new Error("no queued persistence status");
+    return next;
+  });
+});
+
 afterEach(() => {
   delete shell.__TAURI_INTERNALS__;
   resetPersistencePreparationForTests();
@@ -59,18 +75,19 @@ describe("persistence preparation", () => {
 
   it("reports the real reason when the database cannot be used", async () => {
     useDesktopShell();
-    invoke.mockResolvedValue(failed("database-corrupt", "integrity check reported: malformed"));
+    statusResponses = [failed("database-corrupt", "integrity check reported: malformed")];
 
-    const failure = await preparePersistence().catch((error: unknown) => error);
+    const failure = (await preparePersistence().catch((error: unknown) => error)) as PersistenceFailure;
 
-    expect(failure).toBeInstanceOf(PersistenceFailure);
-    expect((failure as PersistenceFailure).code).toBe("database-corrupt");
-    expect((failure as PersistenceFailure).detail).toContain("integrity check");
+    expect(failure.code).toBe("database-corrupt");
+    expect(failure.detail).toContain("integrity check");
+    // The real reason must also reach the diagnostic log the user can send.
+    expect(diagnostics.join("\n")).toContain("integrity check reported: malformed");
   });
 
   it("maps an unknown status code instead of trusting it", async () => {
     useDesktopShell();
-    invoke.mockResolvedValue(failed("something-new", "a future failure"));
+    statusResponses = [failed("something-new", "a future failure")];
 
     const failure = (await preparePersistence().catch((error: unknown) => error)) as PersistenceFailure;
 
@@ -80,17 +97,15 @@ describe("persistence preparation", () => {
 
   it("keeps a failed attempt retryable so a fixed database can start the app", async () => {
     useDesktopShell();
-    invoke.mockResolvedValueOnce(failed("database-not-writable", "access denied"));
-    await expect(preparePersistence()).rejects.toBeInstanceOf(PersistenceFailure);
+    statusResponses = [failed("database-not-writable", "access denied"), healthy];
 
-    invoke.mockResolvedValueOnce(healthy);
+    await expect(preparePersistence()).rejects.toBeInstanceOf(PersistenceFailure);
     await expect(preparePersistence()).resolves.toBeUndefined();
-    expect(invoke).toHaveBeenCalledTimes(2);
   });
 
   it("checks the database only once per run when it is healthy", async () => {
     useDesktopShell();
-    invoke.mockResolvedValue(healthy);
+    statusResponses = [healthy];
 
     await preparePersistence();
     await preparePersistence();
@@ -101,7 +116,7 @@ describe("persistence preparation", () => {
 
   it("never opens a connection when preparation failed", async () => {
     useDesktopShell();
-    invoke.mockResolvedValue(failed("schema-incompatible", "missing column users.username"));
+    statusResponses = [failed("schema-incompatible", "missing column users.username")];
 
     const failure = (await openPersistenceDatabase().catch((error: unknown) => error)) as PersistenceFailure;
 
@@ -113,9 +128,21 @@ describe("persistence preparation", () => {
     expect(load).not.toHaveBeenCalled();
   });
 
+  it("records a diagnostic when the connection cannot be opened", async () => {
+    useDesktopShell();
+    statusResponses = [healthy];
+    load.mockRejectedValue(new Error("database is locked"));
+
+    const failure = (await openPersistenceDatabase().catch((error: unknown) => error)) as PersistenceFailure;
+
+    expect(failure.code).toBe("load-failed");
+    expect(failure.detail).toBe("database is locked");
+    expect(diagnostics.join("\n")).toContain("database is locked");
+  });
+
   it("opens and configures the connection when the database is healthy", async () => {
     useDesktopShell();
-    invoke.mockResolvedValue(healthy);
+    statusResponses = [healthy];
     const execute = vi.fn(async (_sql: string, _values: readonly unknown[] = []) => ({ rowsAffected: 0 }));
     load.mockResolvedValue({ execute, select: vi.fn(), close: vi.fn() });
 

@@ -529,7 +529,7 @@ mod tests {
         let failure = ensure_schema(&path).unwrap_err();
 
         assert_eq!(failure.code, SchemaFailureCode::DatabaseCorrupt);
-        assert_eq!(fs::read(&path).unwrap(), b"definitely not a sqlite database");
+        assert_eq!(fs::read(&path).unwrap(), b"definitely not a sqlite database".to_vec());
 
         fs::remove_dir_all(path.parent().unwrap()).ok();
     }

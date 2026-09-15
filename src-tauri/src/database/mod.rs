@@ -23,8 +23,8 @@ pub const DATABASE_FILE_NAME: &str = "gold-label-studio-pro.db";
 pub const INITIAL_SCHEMA_SQL: &str = include_str!("../../migrations/0001_initial.sql");
 
 /// The interface shows friendly text, so the technical reason is also appended
-/// here. This is the file to inspect when a physical machine reports a database
-/// problem.
+/// to this file, next to the database. It is what to inspect when a physical
+/// machine reports a database problem.
 const DIAGNOSTIC_LOG: &str = "persistence.log";
 const DIAGNOSTIC_LOG_LIMIT: u64 = 256 * 1024;
 
@@ -150,7 +150,26 @@ pub fn initialize(app: &AppHandle) -> PersistenceStatus {
 /// Appends one line describing the database outcome next to the application
 /// logs. Never fails startup: a missing log directory only means no log.
 fn record_diagnostic(app: &AppHandle, status: &PersistenceStatus) {
-    let directory = match app.path().app_log_dir() {
+    let entry = match (&status.error_code, &status.error) {
+        (Some(code), Some(detail)) => format!("failed ({code}): {detail}"),
+        _ => format!(
+            "ready: {} — tables {}/{}, integrity {}, created file: {}, warnings {:?}",
+            status.database_path,
+            status.tables_present,
+            status.tables_expected,
+            status.integrity,
+            status.created_file,
+            status.warnings
+        ),
+    };
+    append_diagnostic(app, &entry);
+}
+
+/// Appends one timestamped line next to the database, rotating the file once it
+/// grows past the limit. That directory is the one the application already
+/// writes to, so the log is available exactly when the database is not.
+fn append_diagnostic(app: &AppHandle, entry: &str) {
+    let directory = match app.path().app_config_dir() {
         Ok(directory) => directory,
         Err(_) => return,
     };
@@ -167,21 +186,10 @@ fn record_diagnostic(app: &AppHandle, status: &PersistenceStatus) {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .unwrap_or(0);
-    let entry = match (&status.error_code, &status.error) {
-        (Some(code), Some(detail)) => format!("[{stamp}] failed ({code}): {detail}\n"),
-        _ => format!(
-            "[{stamp}] ready: {} — tables {}/{}, integrity {}, created file: {}, warnings {:?}\n",
-            status.database_path,
-            status.tables_present,
-            status.tables_expected,
-            status.integrity,
-            status.created_file,
-            status.warnings
-        ),
-    };
+    let line = format!("[{stamp}] {entry}\n");
 
     if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path) {
-        let _ = file.write_all(entry.as_bytes());
+        let _ = file.write_all(line.as_bytes());
     }
 }
 
@@ -190,6 +198,16 @@ fn record_diagnostic(app: &AppHandle, status: &PersistenceStatus) {
 #[tauri::command]
 pub fn persistence_status(app: AppHandle) -> PersistenceStatus {
     initialize(&app)
+}
+
+/// Lets the frontend add a line to the same diagnostic log when opening or
+/// querying the database fails, so an installed build always leaves the real
+/// reason on disk. Best effort by design: a logging problem must never replace
+/// the failure the user is looking at.
+#[tauri::command]
+pub fn record_persistence_diagnostic(app: AppHandle, detail: String) {
+    let entry = format!("client: {}", detail.trim());
+    append_diagnostic(&app, &entry);
 }
 
 #[cfg(test)]
