@@ -173,6 +173,25 @@ pub fn ensure_schema(path: &Path) -> Result<SchemaReport, SchemaFailure> {
 
     let recorded_sqlx_migrations = recorded_migration_versions(&connection);
 
+    let expected = expected_structure()?;
+    let existing = read_structure(&connection).map_err(|error| {
+        SchemaFailure::new(
+            SchemaFailureCode::DatabaseNotWritable,
+            format!("could not read the database structure: {error}"),
+        )
+    })?;
+
+    // A table that already exists but lacks columns this version needs can never
+    // be completed by re-applying the schema: the compiled batch fails on the
+    // first index over a missing column ("no such column"), and that failure
+    // says nothing about the real reason. Detect the shape conflict before
+    // writing anything, so the problem is reported honestly and the database is
+    // left exactly as it was.
+    let conflicts = shape_conflicts(&expected, &existing);
+    if !conflicts.is_empty() {
+        return Err(schema_incompatible(&conflicts));
+    }
+
     // Idempotent: creates whatever is missing and leaves existing tables and
     // rows untouched.
     connection.execute_batch(INITIAL_SCHEMA_SQL).map_err(|error| {
@@ -189,18 +208,10 @@ pub fn ensure_schema(path: &Path) -> Result<SchemaReport, SchemaFailure> {
             format!("could not read the database structure: {error}"),
         )
     })?;
-    let expected = expected_structure()?;
     let blocking = blocking_differences(&expected, &actual);
 
     if !blocking.is_empty() {
-        return Err(SchemaFailure::new(
-            SchemaFailureCode::SchemaIncompatible,
-            format!(
-                "the existing database does not match the schema this version needs and was left untouched: {}. \
-                 Move it aside (for example rename it to gold-label-studio-pro.backup.db) to start with a fresh database.",
-                blocking.join(", ")
-            ),
-        ));
+        return Err(schema_incompatible(&blocking));
     }
 
     let warnings = warning_differences(&expected, &actual);
@@ -326,6 +337,36 @@ fn expected_structure() -> Result<TableStructure, SchemaFailure> {
             format!("could not read the compiled schema: {error}"),
         )
     })
+}
+
+/// Columns a table the database already has must provide. A missing table is not
+/// a conflict: the compiled schema creates it.
+fn shape_conflicts(expected: &TableStructure, existing: &TableStructure) -> Vec<String> {
+    let mut conflicts = Vec::new();
+
+    for (table, columns) in expected {
+        let Some(present) = existing.get(table) else {
+            continue;
+        };
+        for column in columns.keys() {
+            if !present.contains_key(column) {
+                conflicts.push(format!("missing column {table}.{column}"));
+            }
+        }
+    }
+
+    conflicts
+}
+
+fn schema_incompatible(differences: &[String]) -> SchemaFailure {
+    SchemaFailure::new(
+        SchemaFailureCode::SchemaIncompatible,
+        format!(
+            "the existing database does not match the schema this version needs and was left untouched: {}. \
+             Move it aside (for example rename it to gold-label-studio-pro.backup.db) to start with a fresh database.",
+            differences.join(", ")
+        ),
+    )
 }
 
 /// Missing tables or columns break real queries, so they block startup.
@@ -569,6 +610,40 @@ mod tests {
         assert_eq!(count(&connection, "SELECT COUNT(*) FROM users"), 0);
         let columns = read_structure(&connection).unwrap();
         assert!(!columns["users"].contains_key("username"));
+
+        fs::remove_dir_all(path.parent().unwrap()).ok();
+    }
+
+    /// The shape conflict is detected before the schema batch runs, so an
+    /// incompatible database is never half-migrated: it keeps exactly the
+    /// tables it had, and the reason names the columns that are missing.
+    #[test]
+    fn leaves_an_incompatible_database_completely_untouched() {
+        let path = unique_path("untouched");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        {
+            let connection = Connection::open(&path).unwrap();
+            connection
+                .execute_batch("CREATE TABLE users (id TEXT PRIMARY KEY, display_name TEXT NOT NULL);")
+                .unwrap();
+        }
+
+        let failure = ensure_schema(&path).unwrap_err();
+
+        assert_eq!(failure.code, SchemaFailureCode::SchemaIncompatible);
+        assert!(failure.detail.contains("users.username"), "{}", failure.detail);
+
+        let connection = Connection::open(&path).unwrap();
+        // No table or index from the compiled schema may have been applied.
+        assert_eq!(
+            count(
+                &connection,
+                "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('products', 'users_active_username_unique')"
+            ),
+            0
+        );
+        assert_eq!(count(&connection, "SELECT COUNT(*) FROM users"), 0);
 
         fs::remove_dir_all(path.parent().unwrap()).ok();
     }
