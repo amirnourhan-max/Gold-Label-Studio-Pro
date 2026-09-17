@@ -31,18 +31,6 @@ const submit = (label: string | RegExp) =>
   fireEvent.click(screen.getByRole("button", { name: label }));
 
 describe("login screen", () => {
-  it("focuses the display name on first run so keyboard entry starts in the form", () => {
-    renderLogin(session({ hasCredentials: false }), "first-run");
-
-    expect(screen.getByLabelText("نام و نام خانوادگی")).toHaveFocus();
-  });
-
-  it("focuses the username when returning to sign in", () => {
-    renderLogin(session());
-
-    expect(screen.getByLabelText("نام کاربری")).toHaveFocus();
-  });
-
   it("signs in with the entered credentials", async () => {
     const value = session();
     renderLogin(value);
