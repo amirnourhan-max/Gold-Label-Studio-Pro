@@ -21,8 +21,6 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
-    env:
-      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1 --remote-allow-origins=*
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -276,7 +274,6 @@ jobs:
           if (!(Test-Path $database)) { throw "The installed application did not create its database in $appData" }
           Write-Host "Installed application prepared its database at $database"
 
-          Add-Type -AssemblyName Microsoft.VisualBasic
           Add-Type -AssemblyName System.Windows.Forms
           Add-Type @"
           using System;
@@ -284,6 +281,9 @@ jobs:
           public static class GlspWindowProbe {
             [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
             [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+            [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+            [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+            [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
           }
           "@
 
@@ -306,6 +306,19 @@ jobs:
             return @{ Width = $rect.Right - $rect.Left; Height = $rect.Bottom - $rect.Top }
           }
 
+          function Focus-WebView([System.Diagnostics.Process]$Process) {
+            $Process.Refresh()
+            $rect = New-Object GlspWindowProbe+RECT
+            if (-not [GlspWindowProbe]::GetWindowRect($Process.MainWindowHandle, [ref]$rect)) {
+              throw "Could not focus the installed application WebView"
+            }
+            [GlspWindowProbe]::SetForegroundWindow($Process.MainWindowHandle) | Out-Null
+            [GlspWindowProbe]::SetCursorPos([int](($rect.Left + $rect.Right) / 2), $rect.Top + 110) | Out-Null
+            [GlspWindowProbe]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+            [GlspWindowProbe]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+            Start-Sleep -Milliseconds 250
+          }
+
           function Wait-ForWorkspace([System.Diagnostics.Process]$Process, [int]$Seconds = 45) {
             for ($i = 0; $i -lt ($Seconds * 2); $i++) {
               $bounds = Get-WindowBounds $Process
@@ -325,9 +338,8 @@ jobs:
           Write-Host "First Run window: $($authBounds.Width)x$($authBounds.Height)"
           if ($authBounds.Width -ge 900) { throw "First Run did not use compact auth window mode" }
 
-          [Microsoft.VisualBasic.Interaction]::AppActivate($app.Id) | Out-Null
-          node scripts/ci/submit-auth-form.mjs first-run
-          if ($LASTEXITCODE -ne 0) { throw "First Run browser automation failed" }
+          Focus-WebView $app
+          [System.Windows.Forms.SendKeys]::SendWait("{TAB}{TAB}{TAB}CI Administrator{TAB}ci_admin{TAB}CiAcceptance2026{TAB}CiAcceptance2026{TAB}{ENTER}")
           $workspaceBounds = Wait-ForWorkspace $app
           Write-Host "Authenticated workspace: $($workspaceBounds.Width)x$($workspaceBounds.Height)"
 
@@ -346,9 +358,8 @@ jobs:
           Start-Sleep -Seconds 3
           $loginBounds = Get-WindowBounds $relaunch
           if ($loginBounds.Width -ge 900) { throw "Relaunch did not return to compact Login window mode" }
-          [Microsoft.VisualBasic.Interaction]::AppActivate($relaunch.Id) | Out-Null
-          node scripts/ci/submit-auth-form.mjs sign-in
-          if ($LASTEXITCODE -ne 0) { throw "Login browser automation failed" }
+          Focus-WebView $relaunch
+          [System.Windows.Forms.SendKeys]::SendWait("{TAB}{TAB}{TAB}ci_admin{TAB}CiAcceptance2026{TAB}{ENTER}")
           $reopenedWorkspace = Wait-ForWorkspace $relaunch
           Write-Host "Reauthenticated workspace: $($reopenedWorkspace.Width)x$($reopenedWorkspace.Height)"
           Stop-Process -Id $relaunch.Id -Force
