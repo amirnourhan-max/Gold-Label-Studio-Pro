@@ -324,7 +324,7 @@ jobs:
           if ($authBounds.Width -ge 900) { throw "First Run did not use compact auth window mode" }
 
           [Microsoft.VisualBasic.Interaction]::AppActivate($app.Id) | Out-Null
-          [System.Windows.Forms.SendKeys]::SendWait("{TAB}{TAB}{TAB}CI Administrator{TAB}ci_admin{TAB}CiAcceptance2026{TAB}CiAcceptance2026{TAB}{ENTER}")
+          [System.Windows.Forms.SendKeys]::SendWait("CI Administrator{TAB}ci_admin{TAB}CiAcceptance2026{TAB}CiAcceptance2026{TAB}{ENTER}")
           $workspaceBounds = Wait-ForWorkspace $app
           Write-Host "Authenticated workspace: $($workspaceBounds.Width)x$($workspaceBounds.Height)"
 
@@ -344,7 +344,7 @@ jobs:
           $loginBounds = Get-WindowBounds $relaunch
           if ($loginBounds.Width -ge 900) { throw "Relaunch did not return to compact Login window mode" }
           [Microsoft.VisualBasic.Interaction]::AppActivate($relaunch.Id) | Out-Null
-          [System.Windows.Forms.SendKeys]::SendWait("{TAB}{TAB}{TAB}ci_admin{TAB}CiAcceptance2026{TAB}{ENTER}")
+          [System.Windows.Forms.SendKeys]::SendWait("ci_admin{TAB}CiAcceptance2026{TAB}{ENTER}")
           $reopenedWorkspace = Wait-ForWorkspace $relaunch
           Write-Host "Reauthenticated workspace: $($reopenedWorkspace.Width)x$($reopenedWorkspace.Height)"
           Stop-Process -Id $relaunch.Id -Force

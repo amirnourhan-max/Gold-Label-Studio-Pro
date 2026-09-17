@@ -68,6 +68,7 @@ export function LoginPage({ mode = "sign-in", initialError = null }: { mode?: Lo
               name="displayName"
               value={displayName}
               autoComplete="name"
+              autoFocus
               onChange={event => setDisplayName(event.target.value)}
             />
           </div>
@@ -80,6 +81,7 @@ export function LoginPage({ mode = "sign-in", initialError = null }: { mode?: Lo
             name="username"
             value={username}
             autoComplete="username"
+            autoFocus={!firstRun}
             aria-invalid={error !== null}
             onChange={event => setUsername(event.target.value)}
           />
