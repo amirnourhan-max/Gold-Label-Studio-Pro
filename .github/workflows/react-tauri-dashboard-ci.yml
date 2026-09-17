@@ -21,8 +21,6 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
-    env:
-      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1 --remote-allow-origins=*
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -138,7 +136,7 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Tauri Windows acceptance build + NSIS installer
-        run: npm run tauri build -- --bundles nsis --features acceptance-devtools
+        run: npm run tauri build -- --bundles nsis --features acceptance-devtools --config src-tauri/tauri.acceptance.conf.json
 
       - name: Assert the release executable is a Windows GUI application
         shell: powershell
