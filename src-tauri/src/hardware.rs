@@ -8,7 +8,7 @@ use base64::Engine as _;
 use rusqlite::Connection;
 use tauri::{AppHandle, Manager};
 
-use crate::database::DATABASE_FILE_NAME;
+use crate::database::resolve_database_descriptor;
 
 const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
 
@@ -26,23 +26,7 @@ static NEXT_SERIAL_ID: Mutex<u64> = Mutex::new(1);
 /// is only consulted when no database exists there yet, which keeps a database
 /// written by an older layout reachable instead of backing up the wrong file.
 fn resolve_database_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let config_directory = app.path().app_config_dir().ok();
-    let data_directory = app.path().app_data_dir().ok();
-
-    for directory in [config_directory.as_ref(), data_directory.as_ref()]
-        .into_iter()
-        .flatten()
-    {
-        let candidate = directory.join(DATABASE_FILE_NAME);
-        if candidate.is_file() {
-            return Ok(candidate);
-        }
-    }
-
-    config_directory
-        .or(data_directory)
-        .map(|directory| directory.join(DATABASE_FILE_NAME))
-        .ok_or_else(|| "could not resolve the application data directory".to_string())
+    resolve_database_descriptor(app).map(|descriptor| PathBuf::from(descriptor.database_path))
 }
 
 /// Flushes the WAL into the main database file so a plain file copy is coherent.

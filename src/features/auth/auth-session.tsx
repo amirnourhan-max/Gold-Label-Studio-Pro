@@ -8,7 +8,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PersistenceFailure, persistenceFailureMessage } from "../../services/database/persistence-failure";
+import { PersistenceFailure, persistenceFailureMessage, type PersistenceFailureCode } from "../../services/database/persistence-failure";
+import { recordPersistenceDiagnostic, resetPersistencePreparationForTests } from "../../services/database/database-bootstrap";
 import type { AuthenticatedUser } from "../../services/users/auth-service";
 import { CryptoUnavailableError } from "../../services/users/password-hashing";
 import {
@@ -35,6 +36,13 @@ export type CreateFirstAdminInput = Readonly<{
   confirmation: string;
 }>;
 
+export type DatabaseErrorState = Readonly<{
+  code: PersistenceFailureCode;
+  friendlyMessage: string;
+  technicalDetails: string;
+  logPath: string | null;
+}>;
+
 export type AuthSessionValue = Readonly<{
   status: "loading" | "ready";
   user: AuthenticatedUser | null;
@@ -45,6 +53,8 @@ export type AuthSessionValue = Readonly<{
    * screen explains the real problem instead of failing generically on submit.
    */
   unavailableReason?: string | null;
+  databaseError: DatabaseErrorState | null;
+  retryBootstrap(): void;
   signIn(username: string, password: string): Promise<SignInResult>;
   signOut(): void;
   createFirstAdmin(input: CreateFirstAdminInput): Promise<SignInResult>;
@@ -84,6 +94,8 @@ const signedOutSession: AuthSessionValue = {
   hasCredentials: false,
   preview: true,
   unavailableReason: null,
+  databaseError: null,
+  retryBootstrap: () => {},
   signIn: async () => failure("error"),
   signOut: () => {},
   createFirstAdmin: async () => failure("error"),
@@ -101,9 +113,13 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [hasCredentials, setHasCredentials] = useState(false);
   const [preview, setPreview] = useState(true);
   const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
+  const [databaseError, setDatabaseError] = useState<DatabaseErrorState | null>(null);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setStatus("loading");
+    setDatabaseError(null);
     bootstrapAuthSession()
       .then(result => {
         if (!active) return;
@@ -111,6 +127,12 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         setHasCredentials(result.hasCredentials);
         setPreview(result.preview);
         setUnavailableReason(result.unavailableReason);
+        setDatabaseError(result.persistenceFailure ? {
+          code: result.persistenceFailure.code,
+          friendlyMessage: persistenceFailureMessage(result.persistenceFailure.code),
+          technicalDetails: result.persistenceFailure.detail,
+          logPath: result.persistenceFailure.logPath,
+        } : null);
         setStatus("ready");
       })
       .catch((error: unknown) => {
@@ -122,11 +144,28 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         setPreview(!desktop);
         setHasCredentials(false);
         setUnavailableReason(desktop ? messageFor(error) : null);
+        if (desktop) {
+          const failure = error instanceof PersistenceFailure
+            ? error
+            : new PersistenceFailure("DB-OPEN", persistenceFailureMessage("DB-OPEN"), String(error));
+          setDatabaseError({
+            code: failure.code,
+            friendlyMessage: persistenceFailureMessage(failure.code),
+            technicalDetails: failure.detail,
+            logPath: failure.logPath,
+          });
+        }
         setStatus("ready");
       });
     return () => {
       active = false;
     };
+  }, [bootstrapAttempt]);
+
+  const retryBootstrap = useCallback((): void => {
+    resetPersistencePreparationForTests();
+    bootstrap.current = null;
+    setBootstrapAttempt(attempt => attempt + 1);
   }, []);
 
   const signIn = useCallback(async (username: string, password: string): Promise<SignInResult> => {
@@ -166,6 +205,16 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         return { ok: false, reason: "error", message: created.issues[0]?.message ?? failureMessages.error };
       }
       if (created.status === "failed") {
+        if (created.code) {
+          const technicalDetails = created.technicalDetail ?? created.message;
+          recordPersistenceDiagnostic(`${created.code} first-admin insert failed: ${technicalDetails}`);
+          setDatabaseError({
+            code: created.code,
+            friendlyMessage: created.message,
+            technicalDetails,
+            logPath: null,
+          });
+        }
         return { ok: false, reason: "error", message: created.message };
       }
       setHasCredentials(true);
@@ -177,8 +226,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   }, [signIn]);
 
   const value = useMemo<AuthSessionValue>(
-    () => ({ status, user, hasCredentials, preview, unavailableReason, signIn, signOut, createFirstAdmin }),
-    [status, user, hasCredentials, preview, unavailableReason, signIn, signOut, createFirstAdmin],
+    () => ({ status, user, hasCredentials, preview, unavailableReason, databaseError, retryBootstrap, signIn, signOut, createFirstAdmin }),
+    [status, user, hasCredentials, preview, unavailableReason, databaseError, retryBootstrap, signIn, signOut, createFirstAdmin],
   );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;

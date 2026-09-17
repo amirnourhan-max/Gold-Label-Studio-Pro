@@ -20,18 +20,15 @@ describe("authentication failure messages", () => {
 
   it("explains a database file that cannot be used", () => {
     expect(
-      messageForAuthFailure(new PersistenceFailure("database-corrupt", "generic", "integrity check failed")),
-    ).toBe("فایل پایگاه داده معتبر نیست");
+      messageForAuthFailure(new PersistenceFailure("DB-SCHEMA", "generic", "integrity check failed")),
+    ).toBe("پایگاه داده موجود با این نسخه سازگار یا سالم نیست");
     expect(
-      messageForAuthFailure(new PersistenceFailure("schema-incompatible", "generic", "missing column users.username")),
-    ).toBe("پایگاه داده موجود با این نسخه سازگار نیست");
-    expect(
-      messageForAuthFailure(new PersistenceFailure("directory-not-writable", "generic", "access denied")),
-    ).toBe("پوشه داده‌های برنامه قابل نوشتن نیست");
+      messageForAuthFailure(new PersistenceFailure("DB-PERMISSION", "generic", "access denied")),
+    ).toBe("پوشه یا فایل پایگاه داده قابل نوشتن نیست");
   });
 
   it("keeps the approved message for a database that simply cannot be opened", () => {
-    expect(messageForAuthFailure(new PersistenceFailure("load-failed", "generic", "pool error"))).toBe(
+    expect(messageForAuthFailure(new PersistenceFailure("DB-OPEN", "generic", "pool error"))).toBe(
       "ارتباط با پایگاه داده برقرار نشد",
     );
   });

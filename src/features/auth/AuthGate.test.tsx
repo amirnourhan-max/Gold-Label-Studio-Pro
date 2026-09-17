@@ -11,6 +11,8 @@ const session = (overrides: Partial<AuthSessionValue> = {}): AuthSessionValue =>
   user: null,
   hasCredentials: true,
   preview: false,
+  databaseError: null,
+  retryBootstrap: vi.fn(),
   signIn: vi.fn(async () => ({ ok: true as const })),
   signOut: vi.fn(),
   createFirstAdmin: vi.fn(async () => ({ ok: true as const })),
@@ -54,10 +56,20 @@ describe("auth gate", () => {
     expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
   });
 
-  it("explains an unusable database instead of showing a silent first-run form", () => {
-    renderGate(session({ hasCredentials: false, user: null, unavailableReason: "فایل پایگاه داده معتبر نیست" }));
+  it("shows a dedicated error screen instead of first run when persistence is unavailable", () => {
+    renderGate(session({
+      hasCredentials: false,
+      user: null,
+      databaseError: {
+        code: "DB-SCHEMA",
+        friendlyMessage: "پایگاه داده موجود با این نسخه سازگار یا سالم نیست",
+        technicalDetails: "missing column users.username",
+        logPath: "C:\\logs\\diagnostics.jsonl",
+      },
+    }));
 
-    expect(screen.getByTestId("login-error")).toHaveTextContent("فایل پایگاه داده معتبر نیست");
+    expect(screen.getByTestId("database-error-page")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "راه‌اندازی اولیه" })).not.toBeInTheDocument();
   });
 
   it("lets an authenticated user into the workspace", () => {

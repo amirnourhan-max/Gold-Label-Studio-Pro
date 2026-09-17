@@ -11,12 +11,12 @@
  * contract shared with `SchemaFailureCode::label`.
  */
 export type PersistenceFailureCode =
-  | "directory-unresolved"
-  | "directory-not-writable"
-  | "database-corrupt"
-  | "database-not-writable"
-  | "schema-incompatible"
-  | "load-failed"
+  | "DB-PATH"
+  | "DB-OPEN"
+  | "DB-PERMISSION"
+  | "DB-SCHEMA"
+  | "DB-MIGRATION"
+  | "DB-USER-INSERT"
   | "unknown";
 
 /** What the Rust layer did with the production database while starting up. */
@@ -24,6 +24,14 @@ export type PersistenceStatusReport = Readonly<{
   databaseUrl: string;
   databasePath: string;
   directory: string;
+  configDirectory: string;
+  dataDirectory: string;
+  logDirectory: string;
+  logPath: string;
+  parentExists: boolean;
+  parentWritable: boolean;
+  databaseExists: boolean;
+  databaseSize: number | null;
   initialized: boolean;
   createdFile: boolean;
   appliedSchema: boolean;
@@ -46,6 +54,7 @@ export class PersistenceFailure extends Error {
     readonly code: PersistenceFailureCode,
     message: string,
     readonly detail: string,
+    readonly logPath: string | null = null,
   ) {
     super(message);
     this.name = "PersistenceFailure";
@@ -53,12 +62,12 @@ export class PersistenceFailure extends Error {
 }
 
 const messages: Readonly<Record<PersistenceFailureCode, string>> = {
-  "directory-unresolved": "پوشه داده‌های برنامه پیدا نشد",
-  "directory-not-writable": "پوشه داده‌های برنامه قابل نوشتن نیست",
-  "database-corrupt": "فایل پایگاه داده معتبر نیست",
-  "database-not-writable": "فایل پایگاه داده قابل نوشتن نیست",
-  "schema-incompatible": "پایگاه داده موجود با این نسخه سازگار نیست",
-  "load-failed": "ارتباط با پایگاه داده برقرار نشد",
+  "DB-PATH": "مسیر پایگاه داده برنامه قابل استفاده نیست",
+  "DB-OPEN": "ارتباط با پایگاه داده برقرار نشد",
+  "DB-PERMISSION": "پوشه یا فایل پایگاه داده قابل نوشتن نیست",
+  "DB-SCHEMA": "پایگاه داده موجود با این نسخه سازگار یا سالم نیست",
+  "DB-MIGRATION": "آماده‌سازی ساختار پایگاه داده ناموفق بود",
+  "DB-USER-INSERT": "ذخیره مدیر سیستم در پایگاه داده ناموفق بود",
   unknown: "ارتباط با پایگاه داده برقرار نشد",
 };
 

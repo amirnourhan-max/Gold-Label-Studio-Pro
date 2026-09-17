@@ -12,6 +12,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             database::persistence_status,
             database::record_persistence_diagnostic,
+            database::open_diagnostic_logs,
             hardware::backup_database,
             hardware::backup_list,
             hardware::backup_validate,

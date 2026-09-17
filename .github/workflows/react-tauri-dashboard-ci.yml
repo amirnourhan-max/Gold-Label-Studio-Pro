@@ -15,6 +15,7 @@ on:
         feature-integration-v1,
         final-functional-integration,
         final-audit-release,
+        acceptance-fix-v0.2.2,
       ]
 
 jobs:
@@ -43,7 +44,12 @@ jobs:
             "core:window:allow-close",
             "core:window:allow-minimize",
             "core:window:allow-toggle-maximize",
-            "core:window:allow-start-dragging"
+            "core:window:allow-start-dragging",
+            "core:window:allow-current-monitor",
+            "core:window:allow-unmaximize",
+            "core:window:allow-set-min-size",
+            "core:window:allow-set-size",
+            "core:window:allow-center"
           )
           foreach ($permission in $required) {
             if ($cap.permissions -notcontains $permission) {
@@ -216,6 +222,9 @@ jobs:
         run: |
           $setup = Get-ChildItem "src-tauri\target\release\bundle\nsis\*.exe" | Select-Object -First 1
           if (-not $setup) { throw "NSIS installer was not produced" }
+          if ($setup.Name -ne "Gold Label Studio Pro_0.2.2_x64-setup.exe") {
+            throw "Unexpected NSIS artifact name: $($setup.Name)"
+          }
           Write-Host "Installing $($setup.FullName)"
 
           $install = Start-Process -FilePath $setup.FullName -ArgumentList "/S" -PassThru -Wait
@@ -265,14 +274,59 @@ jobs:
           if (!(Test-Path $database)) { throw "The installed application did not create its database in $appData" }
           Write-Host "Installed application prepared its database at $database"
 
-          $app = Start-Process -FilePath $installed.FullName -PassThru
-          Start-Sleep -Seconds 8
-          if ($app.HasExited) { throw "Installed application exited during the smoke launch" }
-          if ($app.MainWindowHandle -eq 0) {
-            Start-Sleep -Seconds 4
-            $app.Refresh()
+          Add-Type -AssemblyName Microsoft.VisualBasic
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type @"
+          using System;
+          using System.Runtime.InteropServices;
+          public static class GlspWindowProbe {
+            [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+            [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
           }
-          if ($app.MainWindowHandle -eq 0) { throw "Installed application did not create a main window" }
+          "@
+
+          function Wait-ForWindow([System.Diagnostics.Process]$Process, [int]$Seconds = 20) {
+            for ($i = 0; $i -lt ($Seconds * 2); $i++) {
+              if ($Process.HasExited) { throw "Installed application exited before its window was ready" }
+              $Process.Refresh()
+              if ($Process.MainWindowHandle -ne 0) { return }
+              Start-Sleep -Milliseconds 500
+            }
+            throw "Installed application did not create a main window"
+          }
+
+          function Get-WindowBounds([System.Diagnostics.Process]$Process) {
+            $Process.Refresh()
+            $rect = New-Object GlspWindowProbe+RECT
+            if (-not [GlspWindowProbe]::GetWindowRect($Process.MainWindowHandle, [ref]$rect)) {
+              throw "Could not read installed application window bounds"
+            }
+            return @{ Width = $rect.Right - $rect.Left; Height = $rect.Bottom - $rect.Top }
+          }
+
+          function Wait-ForWorkspace([System.Diagnostics.Process]$Process, [int]$Seconds = 45) {
+            for ($i = 0; $i -lt ($Seconds * 2); $i++) {
+              $bounds = Get-WindowBounds $Process
+              if ($bounds.Width -ge 1000) { return $bounds }
+              Start-Sleep -Milliseconds 500
+            }
+            throw "Authentication did not transition the installed application to workspace window mode"
+          }
+
+          # Exercise the actual WebView -> AuthSession -> UserService ->
+          # UserRepository -> tauri-plugin-sql path. The older self-check used
+          # rusqlite directly and could pass while this production path failed.
+          $app = Start-Process -FilePath $installed.FullName -PassThru
+          Wait-ForWindow $app
+          Start-Sleep -Seconds 3
+          $authBounds = Get-WindowBounds $app
+          Write-Host "First Run window: $($authBounds.Width)x$($authBounds.Height)"
+          if ($authBounds.Width -ge 900) { throw "First Run did not use compact auth window mode" }
+
+          [Microsoft.VisualBasic.Interaction]::AppActivate($app.Id) | Out-Null
+          [System.Windows.Forms.SendKeys]::SendWait("{TAB}{TAB}{TAB}CI Administrator{TAB}ci_admin{TAB}CiAcceptance2026{TAB}CiAcceptance2026{TAB}{ENTER}")
+          $workspaceBounds = Wait-ForWorkspace $app
+          Write-Host "Authenticated workspace: $($workspaceBounds.Width)x$($workspaceBounds.Height)"
 
           $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($app.Id)" -ErrorAction SilentlyContinue)
           Write-Host "Installed child processes: $($children.Name -join ', ')"
@@ -280,6 +334,20 @@ jobs:
             throw "The installed application created a console window"
           }
           Stop-Process -Id $app.Id -Force
+          Start-Sleep -Seconds 2
+
+          # Relaunch must find the persisted administrator, show compact Login,
+          # authenticate it, and restore workspace mode again.
+          $relaunch = Start-Process -FilePath $installed.FullName -PassThru
+          Wait-ForWindow $relaunch
+          Start-Sleep -Seconds 3
+          $loginBounds = Get-WindowBounds $relaunch
+          if ($loginBounds.Width -ge 900) { throw "Relaunch did not return to compact Login window mode" }
+          [Microsoft.VisualBasic.Interaction]::AppActivate($relaunch.Id) | Out-Null
+          [System.Windows.Forms.SendKeys]::SendWait("{TAB}{TAB}{TAB}ci_admin{TAB}CiAcceptance2026{TAB}{ENTER}")
+          $reopenedWorkspace = Wait-ForWorkspace $relaunch
+          Write-Host "Reauthenticated workspace: $($reopenedWorkspace.Width)x$($reopenedWorkspace.Height)"
+          Stop-Process -Id $relaunch.Id -Force
           Start-Sleep -Seconds 2
 
           $uninstaller = Join-Path $installDir "uninstall.exe"
@@ -310,6 +378,16 @@ jobs:
         with:
           name: Gold-Label-Studio-Pro-Windows-Setup-NSIS
           path: src-tauri/target/release/bundle/nsis/*.exe
+
+      - name: Upload installed-app diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gold-Label-Studio-Pro-0.2.2-Diagnostics
+          path: |
+            ${{ runner.temp }}/glsp-*-self-check.json
+            ${{ env.LOCALAPPDATA }}/com.amirnourhan.goldlabelstudiopro/logs/*.jsonl
+          if-no-files-found: ignore
 
       - name: Upload Windows preview
         if: always()

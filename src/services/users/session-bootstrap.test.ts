@@ -51,14 +51,14 @@ describe("session bootstrap", () => {
     shell.__TAURI_INTERNALS__ = {};
     createPasswordHasher.mockReturnValue(hasher);
     createDefaultUserGateway.mockRejectedValue(
-      new PersistenceFailure("database-corrupt", "ارتباط با پایگاه داده برقرار نشد", "integrity check failed"),
+      new PersistenceFailure("DB-SCHEMA", "ارتباط با پایگاه داده برقرار نشد", "integrity check failed"),
     );
 
     const session = await bootstrapAuthSession();
 
     expect(session.preview).toBe(false);
     expect(session.hasCredentials).toBe(false);
-    expect(session.unavailableReason).toBe("فایل پایگاه داده معتبر نیست");
+    expect(session.unavailableReason).toBe("پایگاه داده موجود با این نسخه سازگار یا سالم نیست");
   });
 
   it("reports no reason and no credentials for a healthy empty database", async () => {

@@ -1,5 +1,6 @@
 import type { UserId, UtcIsoString, UserRole } from "../../types/persistence";
 import type { PasswordHasher } from "./password-hashing";
+import { PersistenceFailure, persistenceFailureMessage, type PersistenceFailureCode } from "../database/persistence-failure";
 import {
   toUserListItem,
   type ChangePasswordCommand,
@@ -18,7 +19,12 @@ import {
 export type UserMutationResult =
   | Readonly<{ status: "saved"; snapshot: UserSnapshot }>
   | Readonly<{ status: "invalid"; issues: readonly UserValidationIssue[] }>
-  | Readonly<{ status: "failed"; message: string }>;
+  | Readonly<{
+      status: "failed";
+      message: string;
+      code?: PersistenceFailureCode;
+      technicalDetail?: string;
+    }>;
 
 export type UserServiceEnvironment = Readonly<{
   now(): string;
@@ -28,8 +34,10 @@ export type UserServiceEnvironment = Readonly<{
 const DUPLICATE_USERNAME_MESSAGE = "این نام کاربری قبلاً استفاده شده است";
 const SAVE_FAILURE_MESSAGE = "ذخیره تغییرات کاربر ناموفق بود";
 
-const isDuplicateError = (error: unknown): boolean =>
-  error instanceof Error && /UNIQUE|unique/i.test(error.message);
+const isDuplicateError = (error: unknown): boolean => {
+  if (error instanceof PersistenceFailure) return /UNIQUE|unique/i.test(error.detail);
+  return error instanceof Error && /UNIQUE|unique/i.test(error.message);
+};
 
 export class UserService {
   constructor(
@@ -129,6 +137,14 @@ export class UserService {
   private failure(error: unknown, conflict?: Readonly<{ field: string; message: string }>): UserMutationResult {
     if (conflict && isDuplicateError(error)) {
       return { status: "invalid", issues: [conflict] };
+    }
+    if (error instanceof PersistenceFailure) {
+      return {
+        status: "failed",
+        message: persistenceFailureMessage(error.code),
+        code: error.code,
+        technicalDetail: error.detail,
+      };
     }
     return { status: "failed", message: SAVE_FAILURE_MESSAGE };
   }

@@ -2,6 +2,7 @@ import type { UserRepository } from "../../repositories/user-repository";
 import type { CreateUserInput, UpdateUserInput, UserPasswordInput } from "../../types/persistence";
 import type { AuthGateway } from "./auth-service";
 import type { UserGateway } from "./user-contract";
+import { PersistenceFailure, persistenceFailureMessage } from "../database/persistence-failure";
 
 /** Persists users through UserRepository; no SQL lives outside the repository. */
 export class PersistenceUserGateway implements UserGateway, AuthGateway {
@@ -20,7 +21,12 @@ export class PersistenceUserGateway implements UserGateway, AuthGateway {
   }
 
   async create(input: CreateUserInput): Promise<void> {
-    await this.repository.create(input);
+    try {
+      await this.repository.create(input);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new PersistenceFailure("DB-USER-INSERT", persistenceFailureMessage("DB-USER-INSERT"), detail);
+    }
   }
 
   async update(input: UpdateUserInput): Promise<void> {

@@ -22,6 +22,7 @@ export type SessionBootstrapResult = Readonly<{
   cryptoAvailable: boolean;
   /** Honest reason shown on the login screen when something is unusable. */
   unavailableReason: string | null;
+  persistenceFailure: PersistenceFailure | null;
 }>;
 
 const resolveHasher = (): Readonly<{ hasher: PasswordHasher; reason: string | null }> => {
@@ -59,6 +60,7 @@ export const bootstrapAuthSession = async (
       preview: false,
       cryptoAvailable: false,
       unavailableReason: reason,
+      persistenceFailure: null,
     };
   }
 
@@ -74,6 +76,7 @@ export const bootstrapAuthSession = async (
       preview: gateway instanceof MockUserGateway,
       cryptoAvailable: true,
       unavailableReason: null,
+      persistenceFailure: null,
     };
   } catch (error) {
     // Fail closed and keep the real reason: reporting it as a generic failure
@@ -81,12 +84,18 @@ export const bootstrapAuthSession = async (
     const desktop = isTauriEnvironment();
     const detail = reasonFor(error, "ارتباط با پایگاه داده برقرار نشد");
     console.error("[persistence] authentication bootstrap could not read the users table", error);
+    const persistenceFailure = error instanceof PersistenceFailure
+      ? error
+      : desktop
+        ? new PersistenceFailure("DB-OPEN", persistenceFailureMessage("DB-OPEN"), String(error))
+        : null;
     return {
       auth: new AuthService(new MockUserGateway(), hasher, session),
       hasCredentials: false,
       preview: !desktop,
       cryptoAvailable: true,
       unavailableReason: desktop ? detail : null,
+      persistenceFailure,
     };
   }
 };

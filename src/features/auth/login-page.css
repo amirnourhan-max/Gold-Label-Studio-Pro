@@ -1,14 +1,51 @@
 /* Login screen — reuses the approved dark/gold RTL design tokens. */
 .login-screen{
-  width:100vw;
-  height:100vh;
+  width:100%;
+  min-height:100%;
   display:grid;
   place-items:center;
   direction:rtl;
-  padding:24px;
+  padding:58px 24px 24px;
   background:radial-gradient(circle at 45% 0,#0d2a44 0,transparent 38%),radial-gradient(circle at 80% 90%,#1c1405 0,transparent 40%),var(--bg-app);
   overflow:auto;
 }
+.auth-window-chrome{
+  position:fixed;
+  z-index:20;
+  inset:0 0 auto;
+  height:34px;
+  display:flex;
+  align-items:center;
+  direction:ltr;
+  color:#8196a7;
+  background:#020b13e8;
+  border-bottom:1px solid #10283a;
+  user-select:none;
+}
+.auth-window-title{padding:0 12px;font-family:var(--font-latin);font-size:10px;pointer-events:none}
+.auth-window-controls{display:flex;margin-left:auto;height:100%}
+.auth-window-controls button{width:42px;height:100%;display:grid;place-items:center;border:0;color:#9fb1be;background:transparent}
+.auth-window-controls button:hover{color:#fff;background:#173044}
+.auth-window-controls .auth-window-close:hover{background:#c42b36}
+.database-error-card{
+  width:min(430px,100%);
+  border:1px solid #503b22;
+  border-radius:16px;
+  padding:28px;
+  color:#dce7ee;
+  background:linear-gradient(180deg,#091824,#030d16);
+  box-shadow:0 24px 60px #0009;
+  text-align:center;
+}
+.database-error-icon{width:58px;height:58px;margin:0 auto 14px;display:grid;place-items:center;border-radius:50%;color:#f0bd57;background:#31220e;border:1px solid #765522}
+.database-error-card h1{margin:0;color:#f3d597;font-size:18px}
+.database-error-card>p{margin:10px 0;color:#aebcc6;font-size:11px;line-height:1.9}
+.database-error-card>code{display:inline-block;padding:5px 10px;border:1px solid #70452c;border-radius:8px;color:#ffbe88;background:#26150e;direction:ltr}
+.database-error-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:20px}
+.database-error-actions button{min-height:40px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #29465a;border-radius:9px;color:#c9d7df;background:#102332;font-size:10px}
+.database-error-actions .login-submit{border-color:#8a6a26;color:#1b1204;background:linear-gradient(180deg,#f0c05a,#c9962f)}
+.database-error-card details{margin-top:16px;text-align:right;color:#8196a7;font-size:9px}
+.database-error-card pre{max-height:120px;overflow:auto;white-space:pre-wrap;word-break:break-word;direction:ltr;text-align:left;color:#9eb0bc;background:#030a10;padding:10px;border-radius:8px}
 .login-card{
   width:min(392px,100%);
   border:1px solid #1c3d57;
@@ -94,3 +131,4 @@
   animation:login-spin .8s linear infinite;
 }
 @keyframes login-spin{to{transform:rotate(360deg)}}
+@media(max-width:520px){.database-error-actions{grid-template-columns:1fr}.login-screen{padding-inline:14px}}

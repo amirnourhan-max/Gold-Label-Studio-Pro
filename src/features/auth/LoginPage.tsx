@@ -3,6 +3,7 @@ import { LogIn, ShieldCheck } from "lucide-react";
 import { referenceAssets } from "../../assets/reference";
 import { useAuthSession } from "./auth-session";
 import "./login-page.css";
+import { AuthWindowChrome } from "./AuthWindowChrome";
 
 export type LoginMode = "sign-in" | "first-run";
 
@@ -42,6 +43,7 @@ export function LoginPage({ mode = "sign-in", initialError = null }: { mode?: Lo
 
   return (
     <div className="login-screen" data-testid="login-page">
+      <AuthWindowChrome />
       <form className="login-card" onSubmit={event => void submit(event)} noValidate>
         <div className="login-brand">
           <img src={referenceAssets.brandDiamond} alt="" />

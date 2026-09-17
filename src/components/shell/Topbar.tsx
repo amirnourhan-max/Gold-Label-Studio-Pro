@@ -1,18 +1,7 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Bell, ChevronDown, LogOut, Maximize2, Minus, Search, Settings, UserRound, X } from "lucide-react";
 import { roleLabels } from "../../services/users/user-contract";
 import { useAuthSession } from "../../features/auth/auth-session";
-
-async function runWindowAction(action: "minimize" | "maximize" | "close") {
-  try {
-    const appWindow = getCurrentWindow();
-    if (action === "minimize") await appWindow.minimize();
-    if (action === "maximize") await appWindow.toggleMaximize();
-    if (action === "close") await appWindow.close();
-  } catch (error) {
-    console.error(`Window action failed: ${action}`, error);
-  }
-}
+import { runWindowAction } from "../../services/window/window-actions";
 
 export function Topbar() {
   const stopDrag = (event: React.PointerEvent<HTMLButtonElement>) => event.stopPropagation();

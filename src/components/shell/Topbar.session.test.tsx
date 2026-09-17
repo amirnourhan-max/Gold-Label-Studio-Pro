@@ -19,6 +19,8 @@ const session = (overrides: Partial<AuthSessionValue> = {}): AuthSessionValue =>
   user: null,
   hasCredentials: true,
   preview: false,
+  databaseError: null,
+  retryBootstrap: vi.fn(),
   signIn: vi.fn(async () => ({ ok: true as const })),
   signOut: vi.fn(),
   createFirstAdmin: vi.fn(async () => ({ ok: true as const })),

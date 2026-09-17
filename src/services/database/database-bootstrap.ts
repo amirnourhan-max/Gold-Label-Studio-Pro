@@ -16,7 +16,10 @@ export const persistenceDatabaseUrl = "sqlite:gold-label-studio-pro.db";
 
 export const configureDatabaseConnection = async <Client extends SqlClient>(client: Client): Promise<Client> => {
   await client.execute("PRAGMA foreign_keys = ON");
-  await client.execute("PRAGMA journal_mode = WAL");
+  // `journal_mode` returns a result row. Sending it through the plugin's
+  // execute-only path is driver-dependent and was never exercised by the old
+  // Rust-only release self-check. Read it through the query path instead.
+  await client.select<{ journalMode: string }>("PRAGMA journal_mode = WAL");
   await client.execute("PRAGMA busy_timeout = 5000");
   return client;
 };
@@ -26,7 +29,7 @@ export const configureDatabaseConnection = async <Client extends SqlClient>(clie
  * installed build always leaves the real reason on disk. A logging failure must
  * never replace the failure the user is looking at.
  */
-const recordDiagnostic = (detail: string): void => {
+export const recordPersistenceDiagnostic = (detail: string): void => {
   if (!isTauriEnvironment()) return;
   void invoke("record_persistence_diagnostic", { detail }).catch(() => undefined);
 };
@@ -38,18 +41,18 @@ const describe = (status: PersistenceStatusReport): string => {
   return parts.join(" — ");
 };
 
-let preparation: Promise<void> | null = null;
+let preparation: Promise<PersistenceStatusReport> | null = null;
 
 /**
  * Prepares the production database before any connection is opened and reports
  * honestly when it cannot be used. A success is cached for the rest of the run;
  * a failure is not, so a retry can succeed once the cause is fixed.
  */
-export const preparePersistence = (): Promise<void> => {
-  if (!isTauriEnvironment()) return Promise.resolve();
+export const preparePersistence = (): Promise<PersistenceStatusReport | null> => {
+  if (!isTauriEnvironment()) return Promise.resolve(null);
   if (preparation !== null) return preparation;
 
-  preparation = (async (): Promise<void> => {
+  preparation = (async (): Promise<PersistenceStatusReport> => {
     let status: PersistenceStatusReport;
     try {
       status = await invoke<PersistenceStatusReport>("persistence_status");
@@ -59,7 +62,7 @@ export const preparePersistence = (): Promise<void> => {
       // generic message.
       const detail = error instanceof Error ? error.message : String(error);
       console.error("[persistence] the desktop database check could not run", error);
-      recordDiagnostic(`the database status check failed: ${detail}`);
+      recordPersistenceDiagnostic(`DB-OPEN status check failed: ${detail}`);
       throw new PersistenceFailure("unknown", persistenceFailureMessage("unknown"), detail);
     }
 
@@ -68,13 +71,13 @@ export const preparePersistence = (): Promise<void> => {
     );
     status.warnings.forEach(warning => console.warn(`[persistence] ${warning}`));
 
-    if (status.initialized) return;
+    if (status.initialized) return status;
 
     const detail = describe(status) || "the database could not be prepared";
     const code = toPersistenceFailureCode(status.errorCode);
     console.error(`[persistence] ${status.errorCode ?? "unknown"}: ${detail}`);
-    recordDiagnostic(`status reports ${code}: ${detail}`);
-    throw new PersistenceFailure(code, "ارتباط با پایگاه داده برقرار نشد", detail);
+    recordPersistenceDiagnostic(`status reports ${code}: ${detail}`);
+    throw new PersistenceFailure(code, "ارتباط با پایگاه داده برقرار نشد", detail, status.logPath);
   })();
 
   const attempt = preparation;
@@ -87,18 +90,38 @@ export const preparePersistence = (): Promise<void> => {
 };
 
 export const openPersistenceDatabase = async (): Promise<SqlClient> => {
-  await preparePersistence();
+  const status = await preparePersistence();
 
   try {
-    const client = await TauriSqlClient.open(persistenceDatabaseUrl);
-    return await configureDatabaseConnection(client);
+    const databaseUrl = status?.databaseUrl ?? persistenceDatabaseUrl;
+    const client = await configureDatabaseConnection(await TauriSqlClient.open(databaseUrl));
+
+    if (status !== null) {
+      const rows = await client.select<{ seq: number; name: string; file: string }>("PRAGMA database_list");
+      const main = rows.find(row => row.name === "main");
+      const expected = normalizedPhysicalPath(status.databasePath);
+      const actual = normalizedPhysicalPath(main?.file ?? "");
+      if (actual === "" || actual !== expected) {
+        await client.close().catch(() => undefined);
+        const detail = `DB-PATH expected ${status.databasePath}; plugin opened ${main?.file || "<unknown>"}`;
+        recordPersistenceDiagnostic(detail);
+        throw new PersistenceFailure("DB-PATH", persistenceFailureMessage("DB-PATH"), detail, status.logPath);
+      }
+    }
+
+    return client;
   } catch (error) {
     if (error instanceof PersistenceFailure) throw error;
     const detail = error instanceof Error ? error.message : String(error);
-    console.error(`[persistence] opening ${persistenceDatabaseUrl} failed`, error);
-    recordDiagnostic(`opening ${persistenceDatabaseUrl} failed: ${detail}`);
-    throw new PersistenceFailure("load-failed", persistenceFailureMessage("load-failed"), detail);
+    console.error(`[persistence] opening the authoritative database failed`, error);
+    recordPersistenceDiagnostic(`DB-OPEN opening the authoritative database failed: ${detail}`);
+    throw new PersistenceFailure("DB-OPEN", persistenceFailureMessage("DB-OPEN"), detail, status?.logPath ?? null);
   }
+};
+
+const normalizedPhysicalPath = (value: string): string => {
+  const normalized = value.trim().replace(/^\\\\\?\\/, "").replaceAll("\\", "/").replace(/\/$/, "");
+  return /^[A-Za-z]:\//.test(normalized) ? normalized.toLocaleLowerCase("en-US") : normalized;
 };
 
 /** Test hook: forgets that the database was already prepared. */

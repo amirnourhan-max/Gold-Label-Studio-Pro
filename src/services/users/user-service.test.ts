@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MockUserGateway } from "./mock-user-gateway";
 import { createPasswordHasher } from "./password-hashing";
 import { UserService, type UserMutationResult } from "./user-service";
+import { PersistenceFailure } from "../database/persistence-failure";
 
 const hasher = createPasswordHasher({ iterations: 1_000 });
 
@@ -37,7 +38,32 @@ class FailingListGateway extends MockUserGateway {
   }
 }
 
+class FailingFirstAdminGateway extends MockUserGateway {
+  override async create(): Promise<void> {
+    throw new PersistenceFailure("DB-USER-INSERT", "generic", "database is locked");
+  }
+}
+
 describe("UserService", () => {
+  it("preserves the stable code and technical detail from a first-admin insert failure", async () => {
+    const service = new UserService(
+      new FailingFirstAdminGateway(),
+      hasher,
+      { now: () => "2026-09-14T09:00:00.000Z", newId: () => "user-new" },
+    );
+
+    const result = await service.createUser({
+      displayName: "مدیر", username: "new-admin", role: "admin", password: "secret123",
+    });
+
+    expect(result).toEqual({
+      status: "failed",
+      message: "ذخیره مدیر سیستم در پایگاه داده ناموفق بود",
+      code: "DB-USER-INSERT",
+      technicalDetail: "database is locked",
+    });
+  });
+
   it("loads the starter users with Persian labels and accurate counts", async () => {
     const { service } = setup();
 

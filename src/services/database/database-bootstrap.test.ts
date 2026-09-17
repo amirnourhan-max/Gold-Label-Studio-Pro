@@ -4,8 +4,10 @@ import type { SqlClient, SqlStatementResult, SqlValue } from "./sql-client";
 
 class RecordingSqlClient implements SqlClient {
   readonly executeCalls: Array<readonly [string, readonly SqlValue[]]> = [];
+  readonly selectCalls: Array<readonly [string, readonly SqlValue[]]> = [];
 
-  async select<T>(): Promise<readonly T[]> {
+  async select<T>(sql: string, bindValues: readonly SqlValue[] = []): Promise<readonly T[]> {
+    this.selectCalls.push([sql, bindValues]);
     return [];
   }
 
@@ -29,8 +31,8 @@ describe("database connection bootstrap", () => {
 
     expect(client.executeCalls).toEqual([
       ["PRAGMA foreign_keys = ON", []],
-      ["PRAGMA journal_mode = WAL", []],
       ["PRAGMA busy_timeout = 5000", []],
     ]);
+    expect(client.selectCalls).toEqual([["PRAGMA journal_mode = WAL", []]]);
   });
 });

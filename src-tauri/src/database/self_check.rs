@@ -12,10 +12,10 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::{params, Connection};
 use serde::Serialize;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use super::schema::{self, SchemaReport};
-use super::DATABASE_FILE_NAME;
+use super::{resolve_database_descriptor, DATABASE_FILE_NAME};
 
 const CHECK_USER_ID: &str = "self-check-user";
 const CHECK_USERNAME: &str = "__self_check__";
@@ -85,17 +85,16 @@ fn evaluate(app: &AppHandle) -> SelfCheckReport {
         error: None,
     };
 
-    // Same resolution the SQL plugin performs for `sqlite:gold-label-studio-pro.db`.
-    let directory = match app.path().app_config_dir() {
-        Ok(directory) => directory,
+    let descriptor = match resolve_database_descriptor(app) {
+        Ok(descriptor) => descriptor,
         Err(error) => {
-            report.error = Some(format!("application data directory could not be resolved: {error}"));
+            report.error = Some(format!("authoritative database path could not be resolved: {error}"));
             return report;
         }
     };
-    let path = directory.join(DATABASE_FILE_NAME);
-    report.directory = directory.display().to_string();
-    report.database_path = path.display().to_string();
+    let path = PathBuf::from(&descriptor.database_path);
+    report.directory = descriptor.config_directory;
+    report.database_path = descriptor.database_path;
 
     match schema::ensure_schema(&path) {
         Ok(schema_report) => report.schema = Some(schema_report),
