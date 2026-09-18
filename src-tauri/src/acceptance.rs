@@ -1,11 +1,23 @@
 use serde_json::Value;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 const ACCEPTANCE_MARKER: &str = "GLSP_ACCEPTANCE_HARNESS_V1";
-const REPORT_FILE: &str = "glsp-acceptance-v0.2.2.json";
+const REPORT_ARGUMENT_PREFIX: &str = "--acceptance-report=";
 
-fn report_path() -> PathBuf {
-    std::env::temp_dir().join(REPORT_FILE)
+fn report_path_from(args: impl IntoIterator<Item = OsString>) -> Option<PathBuf> {
+    args.into_iter().find_map(|argument| {
+        let argument = argument.to_string_lossy();
+        argument
+            .strip_prefix(REPORT_ARGUMENT_PREFIX)
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from)
+    })
+}
+
+fn report_path() -> Result<PathBuf, String> {
+    report_path_from(std::env::args_os())
+        .ok_or_else(|| "acceptance report path was not provided".to_owned())
 }
 
 fn read_report(path: &Path) -> Result<Option<Value>, String> {
@@ -31,12 +43,12 @@ fn write_report(path: &Path, report: &Value) -> Result<(), String> {
 
 #[tauri::command]
 pub fn acceptance_read_report() -> Result<Option<Value>, String> {
-    read_report(&report_path())
+    read_report(&report_path()?)
 }
 
 #[tauri::command]
 pub fn acceptance_write_report(report: Value) -> Result<(), String> {
-    write_report(&report_path(), &report)
+    write_report(&report_path()?, &report)
 }
 
 #[cfg(test)]
@@ -58,5 +70,20 @@ mod tests {
         assert!(write_report(&path, &json!({ "phase": "failed" })).is_err());
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn report_path_comes_from_the_explicit_process_argument() {
+        let expected = PathBuf::from(r"D:\a\_temp\glsp acceptance.json");
+        let args = [
+            OsString::from("gold-label-studio-pro.exe"),
+            OsString::from(format!(
+                "{REPORT_ARGUMENT_PREFIX}{}",
+                expected.display()
+            )),
+        ];
+
+        assert_eq!(report_path_from(args), Some(expected));
+        assert_eq!(report_path_from([OsString::from("gold-label-studio-pro.exe")]), None);
     }
 }

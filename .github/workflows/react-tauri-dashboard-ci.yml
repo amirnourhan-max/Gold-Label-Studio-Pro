@@ -323,7 +323,8 @@ jobs:
           # The acceptance-only React driver calls the exact AuthSession methods
           # used by LoginPage. Those methods retain the production path through
           # UserService, UserRepository, tauri-plugin-sql, hashing, and SQLite.
-          $app = Start-Process -FilePath $installed.FullName -PassThru
+          $acceptanceArgument = "--acceptance-report=`"$acceptanceMarker`""
+          $app = Start-Process -FilePath $installed.FullName -ArgumentList $acceptanceArgument -PassThru
           Start-Sleep -Milliseconds 500
           $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($app.Id)" -ErrorAction SilentlyContinue)
           Write-Host "Installed child processes: $($children.Name -join ', ')"
@@ -340,7 +341,7 @@ jobs:
 
           # Relaunch proves the hashed administrator survived a process restart
           # and can be authenticated again through the production session path.
-          $relaunch = Start-Process -FilePath $installed.FullName -PassThru
+          $relaunch = Start-Process -FilePath $installed.FullName -ArgumentList $acceptanceArgument -PassThru
           $restart = Wait-ForAcceptanceReport $relaunch "restart-complete"
           $restart | ConvertTo-Json -Depth 5 | Write-Host
           Assert-AuthBounds $restart.initialAuth "Restart Login"
