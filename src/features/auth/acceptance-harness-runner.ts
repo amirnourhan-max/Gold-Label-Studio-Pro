@@ -2,12 +2,19 @@ import type { CreateFirstAdminInput, SignInResult } from "./auth-session";
 
 export const ACCEPTANCE_MARKER = "GLSP_ACCEPTANCE_HARNESS_V1";
 
-const credentials: CreateFirstAdminInput = {
-  displayName: "CI Administrator",
-  username: "glsp_ci_admin",
-  password: "GLSP-CI-Only-1405!",
-  confirmation: "GLSP-CI-Only-1405!",
-};
+export type AcceptanceConfig = Readonly<CreateFirstAdminInput & { enabled: boolean }>;
+
+export type AcceptanceProgressPhase =
+  | "acceptance-enabled"
+  | "react-mounted"
+  | "auth-provider-ready"
+  | "database-ready"
+  | "create-admin-started"
+  | "create-admin-complete"
+  | "workspace-entered"
+  | "signed-out"
+  | "signin-started"
+  | "signin-complete";
 
 export type AcceptanceWindowMode = "auth" | "workspace";
 export type AcceptanceWindowBounds = Readonly<{ width: number; height: number }>;
@@ -35,17 +42,23 @@ type FailedReport = Readonly<{
   message: string;
 }>;
 
-export type AcceptanceReport = FirstRunCompleteReport | RestartCompleteReport | FailedReport;
+type ProgressReport = Readonly<{
+  marker: typeof ACCEPTANCE_MARKER;
+  phase: AcceptanceProgressPhase;
+}>;
+
+export type AcceptanceReport = FirstRunCompleteReport | RestartCompleteReport | FailedReport | ProgressReport;
 
 export type AcceptanceHarnessDriver = {
+  config: AcceptanceConfig;
   hasCredentials: boolean;
-  readPreviousReport(): Promise<AcceptanceReport | null>;
   readWindowBounds(): Promise<AcceptanceWindowBounds>;
   waitForWindowMode(mode: AcceptanceWindowMode): Promise<AcceptanceWindowBounds>;
   createFirstAdmin(input: CreateFirstAdminInput): Promise<SignInResult>;
   signIn(username: string, password: string): Promise<SignInResult>;
   signOut(): void;
   writeReport(report: AcceptanceReport): Promise<void>;
+  writeProgress(phase: AcceptanceProgressPhase): Promise<void>;
   closeNormally(): Promise<void>;
 };
 
@@ -55,18 +68,31 @@ function requireSuccess(result: SignInResult): void {
 
 const errorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error);
 
+const sanitizedErrorMessage = (error: unknown, config: AcceptanceConfig): string => {
+  const secrets = [config.password, config.confirmation].filter(value => value.length > 0);
+  return secrets.reduce((message, secret) => message.replaceAll(secret, "[redacted]"), errorMessage(error));
+};
+
 export async function runAcceptanceHarness(driver: AcceptanceHarnessDriver): Promise<void> {
-  let step = "read-state";
+  const credentials: CreateFirstAdminInput = {
+    displayName: driver.config.displayName,
+    username: driver.config.username,
+    password: driver.config.password,
+    confirmation: driver.config.confirmation,
+  };
+  let step = "read-auth-window";
   try {
-    const previous = await driver.readPreviousReport();
-    step = "read-auth-window";
     const initialAuth = await driver.readWindowBounds();
 
-    if (previous?.phase === "first-run-complete" || driver.hasCredentials) {
-      step = "restart-sign-in";
+    if (driver.hasCredentials) {
+      step = "signin-started";
+      await driver.writeProgress("signin-started");
       requireSuccess(await driver.signIn(credentials.username, credentials.password));
+      step = "signin-complete";
+      await driver.writeProgress("signin-complete");
       step = "restart-workspace";
       const restartedWorkspace = await driver.waitForWindowMode("workspace");
+      await driver.writeProgress("workspace-entered");
       step = "write-restart-report";
       await driver.writeReport({
         marker: ACCEPTANCE_MARKER,
@@ -77,18 +103,26 @@ export async function runAcceptanceHarness(driver: AcceptanceHarnessDriver): Pro
       return;
     }
 
-    step = "create-first-admin";
+    step = "create-admin-started";
+    await driver.writeProgress("create-admin-started");
     requireSuccess(await driver.createFirstAdmin(credentials));
+    step = "create-admin-complete";
+    await driver.writeProgress("create-admin-complete");
     step = "first-workspace";
     const firstWorkspace = await driver.waitForWindowMode("workspace");
+    await driver.writeProgress("workspace-entered");
 
     step = "sign-out";
     driver.signOut();
     step = "signed-out-auth-window";
     const signedOutAuth = await driver.waitForWindowMode("auth");
+    await driver.writeProgress("signed-out");
 
-    step = "same-run-sign-in";
+    step = "signin-started";
+    await driver.writeProgress("signin-started");
     requireSuccess(await driver.signIn(credentials.username, credentials.password));
+    step = "signin-complete";
+    await driver.writeProgress("signin-complete");
     step = "reauthenticated-workspace";
     const reauthenticatedWorkspace = await driver.waitForWindowMode("workspace");
 
@@ -106,7 +140,7 @@ export async function runAcceptanceHarness(driver: AcceptanceHarnessDriver): Pro
       marker: ACCEPTANCE_MARKER,
       phase: "failed",
       step,
-      message: errorMessage(error),
+      message: sanitizedErrorMessage(error, driver.config),
     });
     throw error;
   } finally {

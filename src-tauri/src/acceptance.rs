@@ -1,9 +1,30 @@
-use serde_json::Value;
+use serde::Serialize;
+use serde_json::{json, Value};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 const ACCEPTANCE_MARKER: &str = "GLSP_ACCEPTANCE_HARNESS_V1";
 const REPORT_ARGUMENT_PREFIX: &str = "--acceptance-report=";
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AcceptanceConfig {
+    enabled: bool,
+    display_name: &'static str,
+    username: &'static str,
+    password: &'static str,
+    confirmation: &'static str,
+}
+
+fn acceptance_config() -> AcceptanceConfig {
+    AcceptanceConfig {
+        enabled: report_path_from(std::env::args_os()).is_some(),
+        display_name: "CI Administrator",
+        username: "glsp_ci_admin",
+        password: "GLSP-CI-Only-1405!",
+        confirmation: "GLSP-CI-Only-1405!",
+    }
+}
 
 fn report_path_from(args: impl IntoIterator<Item = OsString>) -> Option<PathBuf> {
     args.into_iter().find_map(|argument| {
@@ -39,6 +60,25 @@ fn write_report(path: &Path, report: &Value) -> Result<(), String> {
         .map_err(|error| format!("could not serialize acceptance report: {error}"))?;
     std::fs::write(path, contents)
         .map_err(|error| format!("could not write acceptance report: {error}"))
+}
+
+fn initialize_process_report_at(path: &Path) -> Result<(), String> {
+    write_report(path, &json!({
+        "marker": ACCEPTANCE_MARKER,
+        "phase": "process-started",
+    }))
+}
+
+pub fn initialize_process_report() -> Result<(), String> {
+    if let Some(path) = report_path_from(std::env::args_os()) {
+        initialize_process_report_at(&path)?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn acceptance_get_config() -> AcceptanceConfig {
+    acceptance_config()
 }
 
 #[tauri::command]
@@ -85,5 +125,33 @@ mod tests {
 
         assert_eq!(report_path_from(args), Some(expected));
         assert_eq!(report_path_from([OsString::from("gold-label-studio-pro.exe")]), None);
+    }
+
+    #[test]
+    fn acceptance_config_contains_the_ci_identity() {
+        let config = acceptance_config();
+
+        assert_eq!(config.display_name, "CI Administrator");
+        assert_eq!(config.username, "glsp_ci_admin");
+        assert_eq!(config.password, config.confirmation);
+    }
+
+    #[test]
+    fn process_start_writes_the_first_diagnostic_phase() {
+        let path = std::env::temp_dir().join(format!(
+            "glsp-acceptance-process-test-{}.json",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+
+        initialize_process_report_at(&path).expect("process report should be written");
+
+        let report = read_report(&path)
+            .expect("process report should be readable")
+            .expect("process report should exist");
+        assert_eq!(report["marker"], ACCEPTANCE_MARKER);
+        assert_eq!(report["phase"], "process-started");
+
+        let _ = std::fs::remove_file(path);
     }
 }

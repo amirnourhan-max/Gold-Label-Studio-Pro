@@ -12,12 +12,20 @@ const bounds = {
   workspace: { width: 1600, height: 900 },
 } as const;
 
+const config = {
+  enabled: true,
+  displayName: "CI Administrator",
+  username: "glsp_ci_admin",
+  password: "GLSP-CI-Only-1405!",
+  confirmation: "GLSP-CI-Only-1405!",
+} as const;
+
 function driver(previousReport: AcceptanceReport | null = null) {
   const events: string[] = [];
   const reports: AcceptanceReport[] = [];
   const value: AcceptanceHarnessDriver = {
+    config,
     hasCredentials: previousReport !== null,
-    readPreviousReport: async () => previousReport,
     readWindowBounds: async () => bounds.auth,
     waitForWindowMode: async (mode: AcceptanceWindowMode) => {
       events.push(`window:${mode}`);
@@ -36,6 +44,7 @@ function driver(previousReport: AcceptanceReport | null = null) {
       reports.push(report);
       events.push(`report:${report.phase}`);
     },
+    writeProgress: async phase => { events.push(`phase:${phase}`); },
     closeNormally: async () => { events.push("close"); },
   };
   return { value, events, reports };
@@ -48,11 +57,17 @@ describe("internal installed-app acceptance harness", () => {
     await runAcceptanceHarness(harness.value);
 
     expect(harness.events).toEqual([
+      "phase:create-admin-started",
       "create:CI Administrator:glsp_ci_admin:GLSP-CI-Only-1405!:GLSP-CI-Only-1405!",
+      "phase:create-admin-complete",
       "window:workspace",
+      "phase:workspace-entered",
       "sign-out",
       "window:auth",
+      "phase:signed-out",
+      "phase:signin-started",
       "sign-in:glsp_ci_admin:GLSP-CI-Only-1405!",
+      "phase:signin-complete",
       "window:workspace",
       "report:first-run-complete",
       "close",
@@ -83,8 +98,11 @@ describe("internal installed-app acceptance harness", () => {
     await runAcceptanceHarness(harness.value);
 
     expect(harness.events).toEqual([
+      "phase:signin-started",
       "sign-in:glsp_ci_admin:GLSP-CI-Only-1405!",
+      "phase:signin-complete",
       "window:workspace",
+      "phase:workspace-entered",
       "report:restart-complete",
       "close",
     ]);
@@ -101,7 +119,7 @@ describe("internal installed-app acceptance harness", () => {
     harness.value.createFirstAdmin = async () => ({
       ok: false,
       reason: "error",
-      message: "database write failed",
+      message: `database write failed for ${config.password}`,
     });
 
     await expect(runAcceptanceHarness(harness.value)).rejects.toThrow("database write failed");
@@ -109,8 +127,9 @@ describe("internal installed-app acceptance harness", () => {
     expect(harness.reports[0]).toMatchObject({
       marker: ACCEPTANCE_MARKER,
       phase: "failed",
-      message: "database write failed",
+      message: "database write failed for [redacted]",
     });
+    expect(JSON.stringify(harness.reports)).not.toContain(config.password);
     expect(harness.events.at(-1)).toBe("close");
   });
 });

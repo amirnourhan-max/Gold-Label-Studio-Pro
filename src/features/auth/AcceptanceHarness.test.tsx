@@ -39,7 +39,13 @@ const session = (overrides: Partial<AuthSessionValue> = {}): AuthSessionValue =>
 describe("acceptance-only AuthSession driver", () => {
   it("drives the same context methods as the First Run and Login forms", async () => {
     const value = session();
-    invoke.mockImplementation(async command => command === "acceptance_read_report" ? null : undefined);
+    invoke.mockImplementation(async command => command === "acceptance_get_config" ? {
+      enabled: true,
+      displayName: "CI Administrator",
+      username: "glsp_ci_admin",
+      password: "GLSP-CI-Only-1405!",
+      confirmation: "GLSP-CI-Only-1405!",
+    } : undefined);
     innerSize
       .mockResolvedValueOnce({ width: 520, height: 720 })
       .mockResolvedValueOnce({ width: 1600, height: 900 })
@@ -63,7 +69,15 @@ describe("acceptance-only AuthSession driver", () => {
     expect(value.signIn).toHaveBeenCalledWith("glsp_ci_admin", "GLSP-CI-Only-1405!");
 
     const written = invoke.mock.calls.find(([command]) => command === "acceptance_write_report");
-    expect(written?.[1]).toMatchObject({
+    const reports = invoke.mock.calls
+      .filter(([command]) => command === "acceptance_write_report")
+      .map(([, payload]) => payload);
+    expect(reports).toContainEqual({ report: expect.objectContaining({ phase: "acceptance-enabled" }) });
+    expect(reports).toContainEqual({ report: expect.objectContaining({ phase: "react-mounted" }) });
+    expect(reports).toContainEqual({ report: expect.objectContaining({ phase: "auth-provider-ready" }) });
+    expect(reports).toContainEqual({ report: expect.objectContaining({ phase: "database-ready" }) });
+    expect(written).toBeDefined();
+    expect(reports.at(-1)).toMatchObject({
       report: {
         marker: ACCEPTANCE_MARKER,
         phase: "first-run-complete",
@@ -73,15 +87,60 @@ describe("acceptance-only AuthSession driver", () => {
     });
   });
 
-  it("stays dormant until the real desktop session bootstrap is ready", async () => {
-    render(
-      <AuthSessionContext.Provider value={session({ status: "loading" })}>
+  it("reports startup immediately and waits for the real session bootstrap", async () => {
+    invoke.mockImplementation(async command => command === "acceptance_get_config" ? {
+      enabled: true,
+      displayName: "CI Administrator",
+      username: "glsp_ci_admin",
+      password: "GLSP-CI-Only-1405!",
+      confirmation: "GLSP-CI-Only-1405!",
+    } : undefined);
+    innerSize
+      .mockResolvedValueOnce({ width: 520, height: 720 })
+      .mockResolvedValueOnce({ width: 1600, height: 900 })
+      .mockResolvedValueOnce({ width: 520, height: 720 })
+      .mockResolvedValueOnce({ width: 1600, height: 900 });
+    const loading = session({ status: "loading" });
+    const view = render(
+      <AuthSessionContext.Provider value={loading}>
         <AcceptanceHarness />
       </AuthSessionContext.Provider>,
     );
 
-    await new Promise(resolve => setTimeout(resolve, 10));
-    expect(invoke).not.toHaveBeenCalled();
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("acceptance_get_config"));
+    expect(invoke).toHaveBeenCalledWith("acceptance_write_report", {
+      report: expect.objectContaining({ phase: "react-mounted" }),
+    });
+    expect(loading.createFirstAdmin).not.toHaveBeenCalled();
+
+    const ready = session();
+    view.rerender(
+      <AuthSessionContext.Provider value={ready}>
+        <AcceptanceHarness />
+      </AuthSessionContext.Provider>,
+    );
+    await waitFor(() => expect(ready.createFirstAdmin).toHaveBeenCalledTimes(1));
+  });
+
+  it("stays dormant when the acceptance feature is compiled but no report argument was supplied", async () => {
+    const value = session();
+    invoke.mockImplementation(async command => command === "acceptance_get_config" ? {
+      enabled: false,
+      displayName: "CI Administrator",
+      username: "glsp_ci_admin",
+      password: "GLSP-CI-Only-1405!",
+      confirmation: "GLSP-CI-Only-1405!",
+    } : undefined);
+
+    render(
+      <AuthSessionContext.Provider value={value}>
+        <AcceptanceHarness />
+      </AuthSessionContext.Provider>,
+    );
+
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("acceptance_get_config"));
+    expect(value.createFirstAdmin).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalledWith("acceptance_write_report", expect.anything());
     expect(close).not.toHaveBeenCalled();
   });
 });

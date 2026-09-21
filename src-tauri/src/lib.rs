@@ -48,6 +48,7 @@ pub fn run() {
             hardware::print_raw,
             acceptance::acceptance_read_report,
             acceptance::acceptance_write_report,
+            acceptance::acceptance_get_config,
         ]);
 
     builder
@@ -57,6 +58,12 @@ pub fn run() {
             if let Some(report_path) = database::self_check::requested_report_path() {
                 let exit_code = database::self_check::run(app.handle(), &report_path);
                 std::process::exit(exit_code);
+            }
+
+            #[cfg(feature = "acceptance-harness")]
+            if let Err(error) = acceptance::initialize_process_report() {
+                eprintln!("[acceptance] could not initialize the process report: {error}");
+                std::process::exit(70);
             }
 
             // Prepare the database before the interface can query it.
