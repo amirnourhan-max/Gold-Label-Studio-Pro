@@ -52,4 +52,8 @@ describe("custom desktop titlebar", () => {
       "core:window:allow-start-dragging",
     ]));
   });
+
+  it("grants the SQL write permission required by persistence gateways", () => {
+    expect(capabilities.permissions).toContain("sql:allow-execute");
+  });
 });
