@@ -143,4 +143,37 @@ describe("acceptance-only AuthSession driver", () => {
     expect(invoke).not.toHaveBeenCalledWith("acceptance_write_report", expect.anything());
     expect(close).not.toHaveBeenCalled();
   });
+
+  it("reports the sanitized technical database failure instead of timing out", async () => {
+    invoke.mockImplementation(async command => command === "acceptance_get_config" ? {
+      enabled: true,
+      displayName: "CI Administrator",
+      username: "glsp_ci_admin",
+      password: "GLSP-CI-Only-1405!",
+      confirmation: "GLSP-CI-Only-1405!",
+    } : undefined);
+    const value = session({
+      databaseError: {
+        code: "DB-OPEN",
+        friendlyMessage: "database unavailable",
+        technicalDetails: "plugin load rejected sqlite:gold-label-studio-pro.db",
+        logPath: null,
+      },
+    });
+
+    render(
+      <AuthSessionContext.Provider value={value}>
+        <AcceptanceHarness />
+      </AuthSessionContext.Provider>,
+    );
+
+    await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+    expect(invoke).toHaveBeenCalledWith("acceptance_write_report", {
+      report: expect.objectContaining({
+        phase: "failed",
+        step: "auth-provider-ready",
+        message: expect.stringContaining("plugin load rejected sqlite:gold-label-studio-pro.db"),
+      }),
+    });
+  });
 });

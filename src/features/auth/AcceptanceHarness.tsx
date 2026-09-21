@@ -77,8 +77,10 @@ export function AcceptanceHarness() {
     void (async () => {
       let step = "acceptance-get-config";
       let runnerStarted = false;
+      let acceptanceConfig: AcceptanceConfig | null = null;
       try {
         const config = await invoke<AcceptanceConfig>("acceptance_get_config");
+        acceptanceConfig = config;
         if (!config.enabled) return;
 
         step = "acceptance-enabled";
@@ -91,7 +93,9 @@ export function AcceptanceHarness() {
         await writeProgress("auth-provider-ready");
         if (readySession.preview) throw new Error("acceptance cannot run with the preview user gateway");
         if (readySession.databaseError) {
-          throw new Error(`database ${readySession.databaseError.code}: ${readySession.databaseError.friendlyMessage}`);
+          throw new Error(
+            `database ${readySession.databaseError.code}: ${readySession.databaseError.friendlyMessage}; ${readySession.databaseError.technicalDetails}`,
+          );
         }
         step = "database-ready";
         await writeProgress("database-ready");
@@ -115,11 +119,16 @@ export function AcceptanceHarness() {
           return;
         }
         try {
+          const message = acceptanceConfig === null
+            ? errorMessage(error)
+            : [acceptanceConfig.password, acceptanceConfig.confirmation]
+              .filter(secret => secret.length > 0)
+              .reduce((value, secret) => value.replaceAll(secret, "[redacted]"), errorMessage(error));
           await writeReport({
             marker: ACCEPTANCE_MARKER,
             phase: "failed",
             step,
-            message: errorMessage(error),
+            message,
           });
         } finally {
           await getCurrentWindow().close();
