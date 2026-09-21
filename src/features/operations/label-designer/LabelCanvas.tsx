@@ -12,6 +12,7 @@ import {
 } from "../../../services/label-designer/label-geometry";
 import { barcodeSvgPath, encodeCode128B } from "../../../services/label-designer/barcode-symbol";
 import { buildQrMatrix, qrSvgPath } from "../../../services/label-designer/qr-symbol";
+import type { DesignerTool } from "./LabelToolbox";
 
 type Gesture =
   | Readonly<{ mode: "move"; id: string; startClientX: number; startClientY: number; origin: LabelElement }>
@@ -27,7 +28,9 @@ export type LabelCanvasProps = Readonly<{
   lockGuides: boolean;
   previewMode: boolean;
   context: LabelDataContext;
+  activeTool: DesignerTool;
   onSelect(id: string | null): void;
+  onInsertElement(kind: Exclude<DesignerTool, "select">, xMm: number, yMm: number): void;
   onGestureStart(): void;
   onChangeElement(id: string, patch: Partial<Omit<LabelElement, "id">>): void;
 }>;
@@ -55,6 +58,12 @@ function LabelCanvasElement({
   zoom,
   previewMode,
   context,
+  editing,
+  editDraft,
+  onBeginEdit,
+  onChangeEditDraft,
+  onCommitEdit,
+  onCancelEdit,
   onPointerDownElement,
   onPointerDownHandle,
 }: Readonly<{
@@ -63,6 +72,12 @@ function LabelCanvasElement({
   zoom: number;
   previewMode: boolean;
   context: LabelDataContext;
+  editing: boolean;
+  editDraft: string;
+  onBeginEdit(element: LabelElement): void;
+  onChangeEditDraft(value: string): void;
+  onCommitEdit(): void;
+  onCancelEdit(): void;
   onPointerDownElement(event: ReactPointerEvent<HTMLDivElement>, element: LabelElement): void;
   onPointerDownHandle(event: ReactPointerEvent<HTMLSpanElement>, element: LabelElement, handle: ResizeHandle): void;
 }>) {
@@ -98,7 +113,29 @@ function LabelCanvasElement({
     lineHeight: 1.15,
   };
 
-  const body = (() => {
+  const body = editing ? (
+    <input
+      autoFocus
+      className="label-inline-editor"
+      aria-label="ویرایش مستقیم متن"
+      dir="auto"
+      value={editDraft}
+      onChange={event => onChangeEditDraft(event.target.value)}
+      onPointerDown={event => event.stopPropagation()}
+      onDoubleClick={event => event.stopPropagation()}
+      onBlur={onCommitEdit}
+      onKeyDown={event => {
+        event.stopPropagation();
+        if (event.key === "Enter") {
+          event.preventDefault();
+          onCommitEdit();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          onCancelEdit();
+        }
+      }}
+    />
+  ) : (() => {
     switch (element.kind) {
       case "text":
       case "field":
@@ -168,6 +205,11 @@ function LabelCanvasElement({
       aria-label={`عنصر ${element.kind}${element.binding === null ? "" : ` — ${element.binding}`}`}
       style={style}
       onPointerDown={event => onPointerDownElement(event, element)}
+      onDoubleClick={event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!previewMode && (element.kind === "text" || element.kind === "field")) onBeginEdit(element);
+      }}
     >
       {body}
       {selected && !previewMode && RESIZE_HANDLES.map(handle => (
@@ -190,6 +232,8 @@ function LabelCanvasElement({
 export function LabelCanvas(props: LabelCanvasProps) {
   const { document: label, selectedId, zoom, showGrid, snapToGrid, showGuides, lockGuides, previewMode, context } = props;
   const [gesture, setGesture] = useState<Gesture | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
   const latest = useRef(props);
   latest.current = props;
 
@@ -237,9 +281,10 @@ export function LabelCanvas(props: LabelCanvasProps) {
   };
 
   const onPointerDownElement = (event: ReactPointerEvent<HTMLDivElement>, element: LabelElement): void => {
-    if (previewMode) return;
+    if (previewMode || props.activeTool !== "select" || editingId === element.id) return;
     event.preventDefault();
     event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     startGesture({
       mode: "move",
       id: element.id,
@@ -257,6 +302,7 @@ export function LabelCanvas(props: LabelCanvasProps) {
     if (previewMode) return;
     event.preventDefault();
     event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     startGesture({
       mode: "resize",
       id: element.id,
@@ -295,9 +341,18 @@ export function LabelCanvas(props: LabelCanvasProps) {
               ))}
             </div>
             <div
-              className={`label-sheet${previewMode ? " preview" : ""}`}
+              className={`label-sheet${previewMode ? " preview" : ""}${props.activeTool === "select" ? "" : " inserting"}`}
               data-testid="label-canvas-surface"
               style={{ width: sheetWidth, height: sheetHeight }}
+              onPointerDown={event => {
+                if (previewMode || props.activeTool === "select") return;
+                event.preventDefault();
+                event.stopPropagation();
+                const rect = event.currentTarget.getBoundingClientRect();
+                const xMm = previewPxToMm(event.clientX - rect.left, zoom);
+                const yMm = previewPxToMm(event.clientY - rect.top, zoom);
+                props.onInsertElement(props.activeTool, xMm, yMm);
+              }}
             >
               {showGuides && !previewMode ? <>
                 <span className="label-guide label-guide-v" style={{ left: `${guideX}%` }} />
@@ -317,6 +372,20 @@ export function LabelCanvas(props: LabelCanvasProps) {
                   zoom={zoom}
                   previewMode={previewMode}
                   context={context}
+                  editing={editingId === element.id}
+                  editDraft={editingId === element.id ? editDraft : element.text}
+                  onBeginEdit={target => {
+                    if (props.activeTool !== "select") return;
+                    props.onSelect(target.id);
+                    setEditDraft(target.text);
+                    setEditingId(target.id);
+                  }}
+                  onChangeEditDraft={setEditDraft}
+                  onCommitEdit={() => {
+                    if (editingId !== null) props.onChangeElement(editingId, { text: editDraft });
+                    setEditingId(null);
+                  }}
+                  onCancelEdit={() => setEditingId(null)}
                   onPointerDownElement={onPointerDownElement}
                   onPointerDownHandle={onPointerDownHandle}
                 />

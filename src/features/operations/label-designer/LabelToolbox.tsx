@@ -5,6 +5,7 @@ import type { LabelElementKind } from "../../../services/label-designer/label-do
 import { zoomPercent } from "../../../services/label-designer/label-geometry";
 
 export type LabelToolboxProps = Readonly<{
+  activeTool: DesignerTool;
   zoom: number;
   showGrid: boolean;
   snapToGrid: boolean;
@@ -12,12 +13,14 @@ export type LabelToolboxProps = Readonly<{
   lockGuides: boolean;
   onZoomIn(): void;
   onZoomOut(): void;
-  onAddElement(kind: LabelElementKind): void;
+  onSelectTool(tool: DesignerTool): void;
   onToggleGrid(): void;
   onToggleSnap(): void;
   onToggleGuides(): void;
   onToggleLockGuides(): void;
 }>;
+
+export type DesignerTool = LabelElementKind | "select";
 
 const TOOLS: readonly Readonly<{ label: string; kind: LabelElementKind | "select"; Icon: typeof Type }>[] = [
   { label: "انتخاب", kind: "select", Icon: MousePointer2 },
@@ -51,15 +54,14 @@ export function LabelToolbox(props: LabelToolboxProps) {
     <aside className="label-tool-column" role="region" aria-label="ابزارهای طراحی">
       <section className="label-toolbox" role="toolbar" aria-label="فهرست ابزارهای طراحی">
         <header><b>ابزارها</b><span>⌁</span></header>
-        {TOOLS.map(({ label, kind, Icon }, index) => (
+        {TOOLS.map(({ label, kind, Icon }) => (
           <button
             type="button"
             key={label}
-            className={index === 0 ? "active" : ""}
+            className={props.activeTool === kind ? "active" : ""}
+            aria-pressed={props.activeTool === kind}
             title={kind === "select" ? "انتخاب و جابه‌جایی عناصر" : `افزودن ${label}`}
-            onClick={() => {
-              if (kind !== "select") props.onAddElement(kind);
-            }}
+            onClick={() => props.onSelectTool(kind)}
           >
             <Icon size={20} />
             <span>{label}</span>

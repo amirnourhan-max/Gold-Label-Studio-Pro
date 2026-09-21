@@ -78,21 +78,49 @@ async function renderDesigner(gateway = gatewayStub()) {
   return gateway;
 }
 
-const addTool = (name: string) => fireEvent.click(within(screen.getByRole("toolbar", { name: "فهرست ابزارهای طراحی" })).getByRole("button", { name }));
+const addTool = (name: string) => {
+  fireEvent.click(within(screen.getByRole("toolbar", { name: "فهرست ابزارهای طراحی" })).getByRole("button", { name }));
+  fireEvent.pointerDown(surface(), { clientX: 192, clientY: 84 });
+};
 
 describe("editable label designer canvas", () => {
   it("adds a text element through the toolbox and renders it on the label", async () => {
     await renderDesigner();
 
-    addTool("متن");
+    const tools = screen.getByRole("toolbar", { name: "فهرست ابزارهای طراحی" });
+    fireEvent.click(within(tools).getByRole("button", { name: "متن" }));
+    expect(within(tools).getByRole("button", { name: "متن" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByTestId("label-element-text-1")).not.toBeInTheDocument();
+    fireEvent.pointerDown(surface(), { clientX: 240, clientY: 144 });
 
     const element = await screen.findByTestId("label-element-text-1");
     expect(element).toHaveAttribute("data-element-kind", "text");
-    expect(elementStyle("text-1").left).toBe(`${4 * PX_PER_MM}px`);
-    expect(elementStyle("text-1").top).toBe(`${4 * PX_PER_MM}px`);
+    expect(elementStyle("text-1").left).toBe(`${8 * PX_PER_MM}px`);
+    expect(elementStyle("text-1").top).toBe(`${9 * PX_PER_MM}px`);
     expect(elementStyle("text-1").width).toBe(`${24 * PX_PER_MM}px`);
     expect(elementStyle("text-1").height).toBe(`${6 * PX_PER_MM}px`);
     expect(element).toHaveAttribute("data-selected", "true");
+    expect(within(tools).getByRole("button", { name: "انتخاب" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("edits text directly and makes Enter/Escape and canvas shortcuts deterministic", async () => {
+    await renderDesigner();
+    addTool("متن");
+    const element = await screen.findByTestId("label-element-text-1");
+
+    fireEvent.doubleClick(element);
+    const editor = screen.getByRole("textbox", { name: "ویرایش مستقیم متن" });
+    fireEvent.change(editor, { target: { value: "ویرایش مستقیم" } });
+    fireEvent.keyDown(editor, { key: "Delete" });
+    expect(screen.getByTestId("label-element-text-1")).toBeInTheDocument();
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(within(element).getByText("ویرایش مستقیم")).toBeInTheDocument();
+
+    fireEvent.doubleClick(element);
+    const cancelled = screen.getByRole("textbox", { name: "ویرایش مستقیم متن" });
+    fireEvent.change(cancelled, { target: { value: "لغو شود" } });
+    fireEvent.keyDown(cancelled, { key: "Escape" });
+    expect(within(element).getByText("ویرایش مستقیم")).toBeInTheDocument();
   });
 
   it("adds a dynamic field that shows its resolved sample value", async () => {

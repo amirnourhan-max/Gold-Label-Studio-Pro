@@ -25,7 +25,7 @@ import {
 import { SAMPLE_LABEL_DATA_CONTEXT } from "../../services/label-designer/label-bindings";
 import { DEFAULT_ZOOM, nextZoom } from "../../services/label-designer/label-geometry";
 import {
-  addElement,
+  addElementAt,
   addElementInstance,
   canRedo,
   canUndo,
@@ -52,7 +52,7 @@ import { labelPrintWorkflow, type LabelPrintWorkflow } from "../../services/prin
 import type { LabelElement } from "../../services/label-designer/label-document";
 import { LabelCanvas } from "./label-designer/LabelCanvas";
 import { LabelPropertiesPanel } from "./label-designer/LabelPropertiesPanel";
-import { LabelToolbox } from "./label-designer/LabelToolbox";
+import { LabelToolbox, type DesignerTool } from "./label-designer/LabelToolbox";
 import "./label-designer.css";
 
 type TemplatesStatus = "loading" | "ready" | "error";
@@ -89,6 +89,7 @@ export function LabelDesignerPage({
   const [lockGuides, setLockGuides] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState<DesignerTool>("select");
 
   const rootRef = useRef<HTMLElement | null>(null);
   const gatewayRef = useRef<LabelTemplateGateway | null>(null);
@@ -334,8 +335,9 @@ export function LabelDesignerPage({
     setEditor(state => (state.selectedId === null ? state : updateElement(state, state.selectedId, patch)));
   }, []);
 
-  const handleAddElement = (kind: LabelElementKind): void => {
-    setEditor(state => addElement(state, kind));
+  const handleInsertElement = (kind: LabelElementKind, xMm: number, yMm: number): void => {
+    setEditor(state => addElementAt(state, kind, { xMm, yMm }));
+    setActiveTool("select");
     setNotice(null);
   };
 
@@ -391,6 +393,7 @@ export function LabelDesignerPage({
 
       <div className="label-designer-grid">
         <LabelToolbox
+          activeTool={activeTool}
           zoom={zoom}
           showGrid={showGrid}
           snapToGrid={snapToGrid}
@@ -398,7 +401,7 @@ export function LabelDesignerPage({
           lockGuides={lockGuides}
           onZoomIn={() => setZoom(current => nextZoom(current, 1))}
           onZoomOut={() => setZoom(current => nextZoom(current, -1))}
-          onAddElement={handleAddElement}
+          onSelectTool={setActiveTool}
           onToggleGrid={() => setShowGrid(current => !current)}
           onToggleSnap={() => setSnapToGrid(current => !current)}
           onToggleGuides={() => setShowGuides(current => !current)}
@@ -415,6 +418,8 @@ export function LabelDesignerPage({
           lockGuides={lockGuides}
           previewMode={previewMode}
           context={SAMPLE_LABEL_DATA_CONTEXT}
+          activeTool={activeTool}
+          onInsertElement={handleInsertElement}
           onSelect={id => setEditor(state => selectElement(state, id))}
           onGestureStart={beginGesture}
           onChangeElement={changeElement}

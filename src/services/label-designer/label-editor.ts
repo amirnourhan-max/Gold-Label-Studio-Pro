@@ -75,6 +75,19 @@ export const addElement = (
   );
 };
 
+/** Inserts a new element centred on a physical canvas point. */
+export const addElementAt = (
+  state: LabelEditorState,
+  kind: LabelElementKind,
+  point: Readonly<{ xMm: number; yMm: number }>,
+): LabelEditorState => {
+  const draft = createLabelElement(kind, state.document.elements);
+  return addElement(state, kind, {
+    xMm: roundMm(point.xMm - draft.widthMm / 2),
+    yMm: roundMm(point.yMm - draft.heightMm / 2),
+  });
+};
+
 export const addElementInstance = (state: LabelEditorState, source: LabelElement): LabelEditorState => {
   const element = constrainElement(duplicateLabelElement(source, state.document.elements), state.document);
   return withDocument(

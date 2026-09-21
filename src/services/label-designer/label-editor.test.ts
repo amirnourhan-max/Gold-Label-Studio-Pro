@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createLabelDocument } from "./label-document";
 import {
   addElement,
+  addElementAt,
   addElementInstance,
   canRedo,
   canUndo,
@@ -39,6 +40,20 @@ describe("label editor commands", () => {
     const second = addElement(state, "qr");
     expect(selectedElement(second)?.id).toBe("qr-1");
     expect(selectedElement(second)?.zIndex).toBe(1);
+  });
+
+  it("centres inserted elements on the chosen millimetre point and constrains edges", () => {
+    const first = addElementAt(emptyState(), "text", { xMm: 20, yMm: 12 });
+    expect(selectedElement(first)).toMatchObject({ xMm: 8, yMm: 9 });
+
+    const second = addElementAt(first, "text", { xMm: 35, yMm: 20 });
+    expect(selectedElement(second)).toMatchObject({ xMm: 23, yMm: 17 });
+    expect(selectedElement(second)?.xMm).not.toBe(selectedElement(first)?.xMm);
+
+    const edge = addElementAt(second, "qr", { xMm: 49, yMm: 29 });
+    const placed = selectedElement(edge)!;
+    expect(placed.xMm + placed.widthMm).toBeLessThanOrEqual(50);
+    expect(placed.yMm + placed.heightMm).toBeLessThanOrEqual(30);
   });
 
   it("pastes an element instance with a fresh id and selection", () => {
