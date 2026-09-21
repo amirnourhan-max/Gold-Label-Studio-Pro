@@ -363,8 +363,9 @@ export function LabelDesignerPage({
   };
 
   const handleTestPrint = async (): Promise<void> => {
-    const outcome = await print.printTemplateLabel({
-      templateId: activeTemplateId,
+    const outcome = await print.printCurrentDocument({
+      document: editorRef.current.document,
+      name: templateName,
       copies: 1,
       context: SAMPLE_LABEL_DATA_CONTEXT,
     });

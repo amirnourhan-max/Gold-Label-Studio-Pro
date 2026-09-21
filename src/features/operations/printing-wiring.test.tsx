@@ -10,6 +10,7 @@ const createPrint = (outcome: PrintOutcome): LabelPrintWorkflow => ({
   printProductLabel: vi.fn(async () => outcome),
   printPackageLabel: vi.fn(async () => outcome),
   printTemplateLabel: vi.fn(async () => outcome),
+  printCurrentDocument: vi.fn(async () => outcome),
   testPrint: vi.fn(async () => outcome),
 });
 

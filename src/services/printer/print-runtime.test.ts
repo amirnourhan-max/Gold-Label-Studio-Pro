@@ -5,6 +5,8 @@ import type { EntityId } from "../../types/persistence";
 import { RecordingPrinterTransport, type PrinterTransport } from "./printer-transport";
 import { createPrinterService } from "./printer-service";
 import { createLabelPrintWorkflow } from "./print-runtime";
+import { createLabelDocument, LABEL_DOCUMENT_VERSION } from "../label-designer/label-document";
+import { SAMPLE_LABEL_DATA_CONTEXT } from "../label-designer/label-bindings";
 
 const settingsGateway = (printerName: string): SettingsGateway => ({
   loadSettings: async () => ({
@@ -123,6 +125,67 @@ describe("label print workflow", () => {
     const payload = (transport as RecordingPrinterTransport).jobs[0]!.payload;
     expect(payload).toContain("کارگاه اصلی");
     expect(payload).toContain("^PW320"); // 40mm at 203dpi
+  });
+
+  it("uses the complete saved canonical document instead of reducing it to an element array", async () => {
+    const view: SavedLabelTemplateView = {
+      id: "template-canonical" as EntityId,
+      name: "نمای فهرست قدیمی",
+      templateKind: "product",
+      widthMm: 40,
+      heightMm: 25,
+      isDefault: true,
+    };
+    const gateway = templateGateway([view], {
+      "template-canonical": {
+        name: "سند کامل",
+        templateKind: "product",
+        version: LABEL_DOCUMENT_VERSION,
+        widthMm: 42,
+        heightMm: 26,
+        elements: [{ kind: "text", xMm: 3, yMm: 4, widthMm: 24, heightMm: 6, text: "CANONICAL-DOCUMENT" }],
+      },
+    });
+    const { workflow, transport } = workflowWith({ templates: gateway });
+
+    await workflow.printTemplateLabel({ templateId: "template-canonical" });
+
+    const payload = (transport as RecordingPrinterTransport).jobs[0]!.payload;
+    expect(payload).toContain("CANONICAL-DOCUMENT");
+    expect(payload).toContain("^PW336"); // 42mm, from the canonical document rather than the stale card projection
+    expect(payload).toContain("^LL208");
+  });
+
+  it("prints the current unsaved canonical document through the real renderer and transport", async () => {
+    const current = createLabelDocument({
+      version: LABEL_DOCUMENT_VERSION,
+      widthMm: 43,
+      heightMm: 27,
+      elements: [{
+        id: "field-1",
+        kind: "field",
+        binding: "product.code",
+        text: "fallback",
+        xMm: 5,
+        yMm: 6,
+        widthMm: 25,
+        heightMm: 6,
+      }],
+    });
+    const { workflow, transport } = workflowWith({ printerName: "Zebra ZD421" });
+
+    const outcome = await workflow.printCurrentDocument({
+      document: current,
+      name: "ویرایش ذخیره‌نشده",
+      context: SAMPLE_LABEL_DATA_CONTEXT,
+      copies: 1,
+    });
+
+    expect(outcome.ok).toBe(true);
+    const payload = (transport as RecordingPrinterTransport).jobs[0]!.payload;
+    expect(payload).toContain("R-250904-00125");
+    expect(payload).toContain("^PW344");
+    expect(payload).toContain("^LL216");
   });
 
   it("falls back to the approved layout when the saved template has no elements", async () => {

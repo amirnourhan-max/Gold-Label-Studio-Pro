@@ -5,12 +5,14 @@ import { createDefaultSettingsGateway } from "../settings/settings-gateway";
 import type { SettingsGateway } from "../settings/settings-contract";
 import {
   createDefaultLabelModel,
-  resolveLabelPrintModel,
+  buildLabelPrintModel,
+  resolveLabelDocumentPrintModel,
   type LabelPrintElement,
   type LabelPrintModel,
   type LabelPrintResolution,
 } from "./label-print-model";
 import { EMPTY_LABEL_DATA_CONTEXT, type LabelDataContext } from "../label-designer/label-bindings";
+import { createLabelDocument, type LabelDocument } from "../label-designer/label-document";
 import {
   createPrinterService,
   inferPrinterFormat,
@@ -61,6 +63,13 @@ export type TemplateLabelInput = Readonly<{
   context?: LabelDataContext;
 }>;
 
+export type CurrentDocumentLabelInput = Readonly<{
+  document: LabelDocument;
+  name?: string;
+  copies?: number;
+  context?: LabelDataContext;
+}>;
+
 /**
  * Application-facing printing boundary. React only calls these methods; the
  * persisted printer settings, the saved label templates, the ZPL/TSPL renderers
@@ -70,6 +79,7 @@ export interface LabelPrintWorkflow {
   printProductLabel(input: ProductLabelInput): Promise<PrintOutcome>;
   printPackageLabel(input: PackageLabelInput): Promise<PrintOutcome>;
   printTemplateLabel(input: TemplateLabelInput): Promise<PrintOutcome>;
+  printCurrentDocument(input: CurrentDocumentLabelInput): Promise<PrintOutcome>;
   testPrint(): Promise<PrintOutcome>;
 }
 
@@ -178,12 +188,17 @@ export const createLabelPrintWorkflow = (
         : templates.find(template => template.isDefault) ?? templates[0] ?? null;
       if (chosen === null) return fallback();
 
-      const document = await gateway.loadTemplate(chosen.id);
-      return resolveLabelPrintModel({
-        name: chosen.name,
-        widthMm: chosen.widthMm,
-        heightMm: chosen.heightMm,
-        layoutJson: JSON.stringify(document?.elements ?? []),
+      const stored = await gateway.loadTemplate(chosen.id);
+      if (stored === null) return fallback();
+      const document = createLabelDocument({
+        version: stored.version,
+        widthMm: stored.widthMm,
+        heightMm: stored.heightMm,
+        elements: stored.elements,
+      });
+      return resolveLabelDocumentPrintModel({
+        document,
+        name: stored.name,
         copies: input.copies,
         context: input.context,
         productName: input.productName,
@@ -244,6 +259,17 @@ export const createLabelPrintWorkflow = (
         context: input.context,
       });
       return send(resolution.model);
+    },
+
+    async printCurrentDocument(input: CurrentDocumentLabelInput): Promise<PrintOutcome> {
+      // No saved-template lookup and no default-layout substitution: Test Print
+      // must represent the exact in-memory canvas, including unsaved edits.
+      return send(buildLabelPrintModel({
+        document: input.document,
+        context: input.context,
+        name: input.name ?? "قالب جاری",
+        copies: input.copies ?? 1,
+      }));
     },
 
     async testPrint(): Promise<PrintOutcome> {

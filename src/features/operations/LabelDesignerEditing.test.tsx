@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import designerCss from "./label-designer.css?raw";
 import { LabelDesignerPage } from "./LabelDesignerPage";
 import type { LabelTemplateGateway, LabelTemplateDocument, SavedLabelTemplateView } from "../../services/label-templates/template-contract";
+import { LABEL_DOCUMENT_VERSION } from "../../services/label-designer/label-document";
 
 const template = (name: string, overrides: Partial<SavedLabelTemplateView> = {}): SavedLabelTemplateView => ({
   id: `template-${name}` as SavedLabelTemplateView["id"],
@@ -363,14 +364,29 @@ describe("editable label designer canvas", () => {
       printProductLabel: vi.fn(),
       printPackageLabel: vi.fn(),
       printTemplateLabel: vi.fn(async () => ({ ok: false, message: "چاپگر پیدا نشد" })),
+      printCurrentDocument: vi.fn(async () => ({ ok: false, message: "چاپگر پیدا نشد" })),
       testPrint: vi.fn(),
     };
     mockGateway.mockResolvedValue(gatewayStub());
     render(<LabelDesignerPage print={print} />);
 
+    addTool("متن");
+    const properties = screen.getByRole("region", { name: "خواص عنصر" });
+    fireEvent.change(within(properties).getByLabelText("متن عنصر"), { target: { value: "UNSAVED-CANVAS" } });
     fireEvent.click(screen.getByRole("button", { name: "چاپ آزمایشی" }));
 
-    await waitFor(() => expect(print.printTemplateLabel).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(print.printCurrentDocument).toHaveBeenCalledTimes(1));
+    expect(print.printTemplateLabel).not.toHaveBeenCalled();
+    expect(print.printCurrentDocument).toHaveBeenCalledWith(expect.objectContaining({
+      name: "قالب جدید",
+      copies: 1,
+      document: expect.objectContaining({
+        version: LABEL_DOCUMENT_VERSION,
+        widthMm: 50,
+        heightMm: 30,
+        elements: [expect.objectContaining({ kind: "text", text: "UNSAVED-CANVAS" })],
+      }),
+    }));
     expect(await screen.findByText("چاپگر پیدا نشد")).toBeInTheDocument();
   });
 });

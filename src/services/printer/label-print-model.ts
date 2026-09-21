@@ -295,6 +295,38 @@ const defaultResolution = (input: {
 });
 
 /**
+ * Resolves an already-canonical document without serialising it back through a
+ * legacy element-array format. This is the production path for the designer
+ * and for templates loaded by the persistence gateway.
+ */
+export const resolveLabelDocumentPrintModel = (input: {
+  document: LabelDocument;
+  name: string;
+  copies?: number;
+  context?: LabelDataContext;
+  productName?: string;
+  productCode?: string;
+}): LabelPrintResolution => {
+  const fallbackOptions = {
+    name: input.name,
+    widthMm: input.document.widthMm,
+    heightMm: input.document.heightMm,
+    copies: input.copies ?? 1,
+    productName: input.productName,
+    productCode: input.productCode,
+  };
+  if (input.document.elements.length === 0) return defaultResolution(fallbackOptions);
+
+  const model = buildLabelPrintModel({
+    document: input.document,
+    context: input.context,
+    name: input.name,
+    copies: input.copies ?? 1,
+  });
+  return model.elements.length === 0 ? defaultResolution(fallbackOptions) : { model, usedFallback: false };
+};
+
+/**
  * Resolves the persisted layout JSON of a saved template into the print model.
  * A malformed or empty document falls back to the approved default layout so a
  * print never produces a blank label, and the fallback is reported.
@@ -324,13 +356,12 @@ export const resolveLabelPrintModel = (input: {
   });
   if (document === null || document.elements.length === 0) return defaultResolution(fallbackOptions);
 
-  const model = buildLabelPrintModel({
+  return resolveLabelDocumentPrintModel({
     document,
     context: input.context,
     name: input.name,
     copies: input.copies ?? 1,
+    productName: input.productName,
+    productCode: input.productCode,
   });
-  if (model.elements.length === 0) return defaultResolution(fallbackOptions);
-  return { model, usedFallback: false };
 };
-
