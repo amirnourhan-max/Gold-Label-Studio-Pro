@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import designerCss from "./label-designer.css?raw";
 import { LabelDesignerPage } from "./LabelDesignerPage";
@@ -84,6 +84,49 @@ const addTool = (name: string) => {
 };
 
 describe("editable label designer canvas", () => {
+  it("protects a dirty document on New with Save, Discard and Cancel choices", async () => {
+    const gateway = await renderDesigner();
+    addTool("متن");
+    await screen.findByTestId("label-element-text-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "جدید" }));
+    const firstDialog = screen.getByRole("dialog", { name: "تغییرات ذخیره‌نشده" });
+    fireEvent.click(within(firstDialog).getByRole("button", { name: "لغو" }));
+    expect(screen.getByTestId("label-element-text-1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "جدید" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "تغییرات ذخیره‌نشده" })).getByRole("button", { name: "ذخیره" }));
+    await waitFor(() => expect(gateway.saveTemplate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByTestId("label-element-text-1")).not.toBeInTheDocument());
+
+    addTool("متن");
+    await screen.findByTestId("label-element-text-1");
+    fireEvent.click(screen.getByRole("button", { name: "جدید" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "تغییرات ذخیره‌نشده" })).getByRole("button", { name: "نادیده گرفتن" }));
+    expect(screen.queryByTestId("label-element-text-1")).not.toBeInTheDocument();
+  });
+
+  it("registers a route-leave guard that blocks navigation until the user decides", async () => {
+    const register = vi.fn();
+    mockGateway.mockResolvedValue(gatewayStub());
+    render(<LabelDesignerPage onRegisterLeaveGuard={register} />);
+    await waitFor(() => expect(register).toHaveBeenCalledWith(expect.any(Function)));
+    addTool("متن");
+    await screen.findByTestId("label-element-text-1");
+
+    const navigate = vi.fn();
+    const guard = register.mock.calls.find(call => typeof call[0] === "function")?.[0] as ((action: () => void) => void);
+    act(() => guard(navigate));
+
+    expect(navigate).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole("dialog", { name: "تغییرات ذخیره‌نشده" })).getByRole("button", { name: "لغو" }));
+    expect(navigate).not.toHaveBeenCalled();
+
+    act(() => guard(navigate));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "تغییرات ذخیره‌نشده" })).getByRole("button", { name: "نادیده گرفتن" }));
+    expect(navigate).toHaveBeenCalledTimes(1);
+  });
+
   it("adds a text element through the toolbox and renders it on the label", async () => {
     await renderDesigner();
 
@@ -207,6 +250,24 @@ describe("editable label designer canvas", () => {
 
     fireEvent.change(within(properties).getByLabelText("چرخش"), { target: { value: "90" } });
     expect(wrapper.style.transform).toBe("rotate(90deg)");
+  });
+
+  it("shows contextual properties and reflects the selected property tab", async () => {
+    await renderDesigner();
+    addTool("متن");
+    const properties = screen.getByRole("region", { name: "خواص عنصر" });
+    expect(within(properties).getByLabelText("وزن فونت")).toBeInTheDocument();
+    expect(within(properties).queryByLabelText("سطح تصحیح خطا")).not.toBeInTheDocument();
+
+    addTool("کد QR");
+    expect(within(properties).getByLabelText("سطح تصحیح خطا")).toBeInTheDocument();
+    expect(within(properties).queryByLabelText("وزن فونت")).not.toBeInTheDocument();
+    expect(within(properties).queryByLabelText("نمایش مقدار زیر بارکد")).not.toBeInTheDocument();
+
+    const tabs = within(properties).getByRole("navigation", { name: "زبانه‌های خواص" });
+    fireEvent.click(within(tabs).getByRole("button", { name: "کد QR" }));
+    expect(within(tabs).getByRole("button", { name: "کد QR" })).toHaveClass("active");
+    expect(within(tabs).getByRole("button", { name: "عمومی" })).not.toHaveClass("active");
   });
 
   it("deletes and duplicates the selected element from the properties panel", async () => {

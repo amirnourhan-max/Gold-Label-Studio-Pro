@@ -116,6 +116,9 @@
 .label-template-open { min-width: 0; display: grid; grid-template-rows: minmax(0, 1fr) 20px; align-items: center; gap: 3px; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .label-templates article.active { border-color: #d2a03f; box-shadow: inset 0 0 0 1px #8b6828; color: #e0e6ea; }
 .label-template-image { position: relative; min-width: 0; width: 100%; height: 88px; overflow: hidden; border-radius: 7px; background: #f7f5f1; }
+.label-template-preview { width: 100%; height: 100%; display: block; background: #fff; }
+.label-template-preview-state { display: grid; place-items: center; width: 100%; height: 100%; color: #64748b; }
+.label-template-preview-state.error { color: #b42318; font-weight: 800; }
 .label-templates article img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 7px; background: #f7f5f1; }
 .label-templates article:nth-child(5) img, .label-templates article:nth-child(6) img { left: 0; right: auto; width: calc(100% + 18px); }
 .label-templates article span { align-self: end; }
@@ -141,6 +144,15 @@
 
 .label-templates-empty { margin: 0; padding: 6px 8px; grid-column: 1 / -1; font-size: 12px; color: #bfcbd4; text-align: right; }
 .label-template-manage { display: flex; justify-content: center; gap: 5px; }
+.label-template-picker { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(4, 12, 26, .62); }
+.label-template-picker > div { width: min(460px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; padding: 18px; border: 1px solid #d7b66b; border-radius: 12px; background: #fff; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.label-template-picker header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.label-template-picker > div > button { display: block; width: 100%; margin: 6px 0; padding: 10px; text-align: right; border: 1px solid #d9e0ea; border-radius: 8px; background: #f8fafc; }
+.label-dirty-dialog > div { color: #172334; direction: rtl; }
+.label-dirty-dialog p { margin: 0 0 16px; }
+.label-dirty-actions { display: flex; gap: 8px; }
+.label-dirty-actions button { min-width: 92px; padding: 9px 14px; border: 1px solid #cbd5e1; border-radius: 7px; background: #f8fafc; color: #172334; }
+.label-dirty-actions button.accent { border-color: #a77a25; background: #b88a35; color: #fff; }
 
 /* The notice takes its own grid row, so it never covers the tools, canvas or
    template list at any supported resolution. */

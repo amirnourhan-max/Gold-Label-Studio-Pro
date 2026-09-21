@@ -113,12 +113,17 @@ function SwitchButton({
 
 export function LabelPropertiesPanel(props: LabelPropertiesPanelProps) {
   const { label, element } = props;
+  const [activeSection, setActiveSection] = useState<Section>("position");
   const disabled = element === null;
+  const textLike = element?.kind === "text" || element?.kind === "field";
+  const contentBearing = textLike || element?.kind === "qr" || element?.kind === "barcode";
+  const symbolKind = element?.kind === "qr" || element?.kind === "barcode";
   const sectionRefs = useRef<Record<Section, HTMLElement | null>>({
     content: null, position: null, symbol: null, appearance: null, order: null, label: null,
   });
 
   const scrollTo = (section: Section): void => {
+    setActiveSection(section);
     sectionRefs.current[section]?.scrollIntoView?.({ block: "nearest" });
   };
 
@@ -134,11 +139,16 @@ export function LabelPropertiesPanel(props: LabelPropertiesPanelProps) {
       <header><b>خواص</b><button type="button" aria-label="بستن خواص" onClick={() => props.onDeselect()}>×</button></header>
       <ScrollPanel className="label-properties-scroll" role="region" aria-label="تنظیمات خواص">
         <nav aria-label="زبانه‌های خواص">
-          {TABS.map((tab, index) => (
+          {TABS.filter(tab =>
+            tab.section === "position"
+            || (tab.section === "content" && contentBearing)
+            || (tab.section === "symbol" && symbolKind)
+            || tab.section === "appearance",
+          ).map(tab => (
             <button
               type="button"
               key={tab.label}
-              className={index === 2 ? "active" : ""}
+              className={activeSection === tab.section ? "active" : ""}
               onClick={() => scrollTo(tab.section)}
             >
               {tab.label}
@@ -146,7 +156,7 @@ export function LabelPropertiesPanel(props: LabelPropertiesPanelProps) {
           ))}
         </nav>
 
-        <section ref={node => { sectionRefs.current.content = node; }}>
+        {contentBearing ? <section ref={node => { sectionRefs.current.content = node; }}>
           <h3>متن و متغیر <ChevronDown size={14} /></h3>
           <label>
             <span>متن</span>
@@ -187,7 +197,7 @@ export function LabelPropertiesPanel(props: LabelPropertiesPanelProps) {
               ))}
             </select>
           </label>
-          <label>
+          {textLike ? <label>
             <span>اندازه فونت (mm)</span>
             <input
               dir="ltr"
@@ -202,8 +212,8 @@ export function LabelPropertiesPanel(props: LabelPropertiesPanelProps) {
                 }
               }}
             />
-          </label>
-          <div className="label-property-grid">
+          </label> : null}
+          {textLike ? <div className="label-property-grid">
             <label>
               <span>وزن فونت</span>
               <select
@@ -229,8 +239,8 @@ export function LabelPropertiesPanel(props: LabelPropertiesPanelProps) {
                 <option value="right">راست</option>
               </select>
             </label>
-          </div>
-        </section>
+          </div> : null}
+        </section> : null}
 
         <section ref={node => { sectionRefs.current.position = node; }}>
           <h3>موقعیت و اندازه <ChevronDown size={14} /></h3>
@@ -253,9 +263,9 @@ export function LabelPropertiesPanel(props: LabelPropertiesPanelProps) {
           </label>
         </section>
 
-        <section ref={node => { sectionRefs.current.symbol = node; }}>
-          <h3>تنظیمات کد QR <ChevronDown size={14} /></h3>
-          <label>
+        {symbolKind ? <section ref={node => { sectionRefs.current.symbol = node; }}>
+          <h3>{element?.kind === "qr" ? "تنظیمات کد QR" : "تنظیمات بارکد"} <ChevronDown size={14} /></h3>
+          {element?.kind === "qr" ? <label>
             <span>سطح تصحیح خطا</span>
             <select
               aria-label="سطح تصحیح خطا"
@@ -265,17 +275,16 @@ export function LabelPropertiesPanel(props: LabelPropertiesPanelProps) {
             >
               {LABEL_ERROR_CORRECTIONS.map(level => <option key={level} value={level}>{`${level} (${level === "L" ? "7" : level === "M" ? "15" : level === "Q" ? "25" : "30"}%)`}</option>)}
             </select>
-          </label>
-          <MmField label="حاشیه داخلی (Padding)" value={element?.paddingMm ?? 0} min={0} max={20} disabled={disabled} onCommit={value => update({ paddingMm: value })} />
-          <label>
+          </label> : null}
+          {element?.kind === "qr" ? <MmField label="حاشیه داخلی (Padding)" value={element?.paddingMm ?? 0} min={0} max={20} disabled={disabled} onCommit={value => update({ paddingMm: value })} /> : null}
+          {element?.kind === "barcode" ? <label>
             <span>نوع بارکد</span>
             <select aria-label="نوع بارکد" dir="ltr" disabled={disabled} value={element?.barcodeType ?? "code128"} onChange={() => update({ barcodeType: "code128" })}>
               <option value="code128">Code 128</option>
             </select>
-          </label>
-          <p><span>نمایش چارچوب</span><SwitchButton label="نمایش چارچوب" checked={element?.showFrame ?? false} disabled={disabled} onToggle={() => update({ showFrame: !(element?.showFrame ?? false) })} /></p>
-          <p><span>نمایش مقدار زیر بارکد</span><SwitchButton label="نمایش مقدار زیر بارکد" checked={element?.humanReadable ?? false} disabled={disabled} onToggle={() => update({ humanReadable: !(element?.humanReadable ?? false) })} /></p>
-        </section>
+          </label> : null}
+          {element?.kind === "barcode" ? <p><span>نمایش مقدار زیر بارکد</span><SwitchButton label="نمایش مقدار زیر بارکد" checked={element?.humanReadable ?? false} disabled={disabled} onToggle={() => update({ humanReadable: !(element?.humanReadable ?? false) })} /></p> : null}
+        </section> : null}
 
         <section ref={node => { sectionRefs.current.appearance = node; }}>
           <h3>ظاهر <ChevronDown size={14} /></h3>
@@ -303,6 +312,7 @@ export function LabelPropertiesPanel(props: LabelPropertiesPanelProps) {
           </label>
           <MmField label="ضخامت خط" value={style?.borderWidthMm ?? 0} min={0} max={5} disabled={disabled || style === null} onCommit={value => update({ style: { ...style!, borderWidthMm: value } })} />
           <MmField label="شعاع گوشه‌ها" value={style?.borderRadiusMm ?? 0} min={0} max={20} disabled={disabled || style === null} onCommit={value => update({ style: { ...style!, borderRadiusMm: value } })} />
+          <p><span>نمایش چارچوب</span><SwitchButton label="نمایش چارچوب" checked={element?.showFrame ?? false} disabled={disabled} onToggle={() => update({ showFrame: !(element?.showFrame ?? false) })} /></p>
         </section>
 
         <section ref={node => { sectionRefs.current.order = node; }}>

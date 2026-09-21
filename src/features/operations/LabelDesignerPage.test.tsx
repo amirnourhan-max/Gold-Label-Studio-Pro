@@ -27,7 +27,7 @@ describe("approved label designer", () => {
     expect(within(tools).getAllByRole("button").map(button => button.textContent?.trim())).toEqual([
       "انتخاب", "متن", "کد QR", "بارکد", "تصویر", "خط", "شکل", "متغیر",
     ]);
-    await waitFor(() => expect(screen.getAllByRole("img", { name: /قالب/ })).toHaveLength(6));
+    await waitFor(() => expect(screen.getAllByRole("img", { name: /پیش‌نمایش واقعی قالب/ })).toHaveLength(6));
   });
 
   it("keeps view controls separate from the complete left-side tool list", () => {
@@ -44,9 +44,11 @@ describe("approved label designer", () => {
 
     const templates = await screen.findByRole("list", { name: "قالب‌های ذخیره‌شده" });
     await waitFor(() => expect(within(templates).getAllByRole("listitem")).toHaveLength(6));
-    expect(within(templates).getAllByRole("img").map(image => image.getAttribute("alt"))).toEqual([
-      "قالب انگشتر", "قالب دستبند", "قالب گردنبند", "قالب سرویس", "قالب پلاک", "قالب گوشواره",
-    ]);
+    await waitFor(() =>
+      expect(within(templates).getAllByRole("img").map(image => image.getAttribute("aria-label"))).toEqual([
+        "پیش‌نمایش واقعی قالب انگشتر", "پیش‌نمایش واقعی قالب دستبند", "پیش‌نمایش واقعی قالب گردنبند", "پیش‌نمایش واقعی قالب سرویس", "پیش‌نمایش واقعی قالب پلاک", "پیش‌نمایش واقعی قالب گوشواره",
+      ]),
+    );
   });
 
   it("keeps all property controls in a keyboard-accessible internal scroll region", () => {
@@ -56,7 +58,7 @@ describe("approved label designer", () => {
     const propertyScroll = within(properties).getByRole("region", { name: "تنظیمات خواص" });
     expect(propertyScroll).toHaveAttribute("tabindex", "0");
     expect(within(propertyScroll).getByText("موقعیت و اندازه")).toBeInTheDocument();
-    expect(within(propertyScroll).getByText("تنظیمات کد QR")).toBeInTheDocument();
+    expect(within(propertyScroll).queryByText("تنظیمات کد QR")).not.toBeInTheDocument();
     expect(within(propertyScroll).getByText("ظاهر")).toBeInTheDocument();
     expect(within(propertyScroll).queryByRole("button", { name: "حذف عنصر" })).not.toBeInTheDocument();
     expect(within(properties).getByRole("button", { name: "حذف عنصر" })).toBeInTheDocument();

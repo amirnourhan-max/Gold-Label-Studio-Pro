@@ -3,11 +3,7 @@ import {
   AlignHorizontalJustifyCenter, ChevronLeft, Copy, Eye, FilePlus2, FolderOpen,
   Grid3X3, LayoutGrid, List, Pencil, Printer, Redo2, Save, Trash2, Undo2,
 } from "lucide-react";
-import { designerTemplates } from "../../assets/reference";
-import {
-  createDefaultTemplateGateway,
-  approvedSavedTemplateViews,
-} from "../../services/label-templates/template-gateway";
+import { createDefaultTemplateGateway } from "../../services/label-templates/template-gateway";
 import { validateLabelTemplate } from "../../services/label-templates/template-validation";
 import type {
   LabelTemplateDocument,
@@ -53,6 +49,7 @@ import type { LabelElement } from "../../services/label-designer/label-document"
 import { LabelCanvas } from "./label-designer/LabelCanvas";
 import { LabelPropertiesPanel } from "./label-designer/LabelPropertiesPanel";
 import { LabelToolbox, type DesignerTool } from "./label-designer/LabelToolbox";
+import { TemplatePreview } from "./label-designer/TemplatePreview";
 import "./label-designer.css";
 
 type TemplatesStatus = "loading" | "ready" | "error";
@@ -68,15 +65,24 @@ const emptyDocument = (): LabelDocument =>
     elements: [],
   });
 
+export type LabelDesignerLeaveGuard = (continueNavigation: () => void) => void;
+
+const documentSignature = (name: string, document: LabelDocument): string => JSON.stringify({
+  name,
+  document,
+});
+
 export function LabelDesignerPage({
   print = labelPrintWorkflow,
   templateGateway,
+  onRegisterLeaveGuard,
 }: {
   print?: LabelPrintWorkflow;
   templateGateway?: LabelTemplateGateway | Promise<LabelTemplateGateway>;
+  onRegisterLeaveGuard?: (guard: LabelDesignerLeaveGuard | null) => void;
 } = {}) {
   const [editor, setEditor] = useState<LabelEditorState>(() => createEditorState(emptyDocument()));
-  const [templates, setTemplates] = useState<readonly SavedLabelTemplateView[]>(approvedSavedTemplateViews);
+  const [templates, setTemplates] = useState<readonly SavedLabelTemplateView[]>([]);
   const [status, setStatus] = useState<TemplatesStatus>("loading");
   const [manageMode, setManageMode] = useState(false);
   const [listMode, setListMode] = useState<"grid" | "list">("grid");
@@ -90,14 +96,53 @@ export function LabelDesignerPage({
   const [previewMode, setPreviewMode] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<DesignerTool>("select");
+  const [openPicker, setOpenPicker] = useState(false);
+  const [dirtyDialogOpen, setDirtyDialogOpen] = useState(false);
+  const initialDocument = useMemo(emptyDocument, []);
+  const [savedSignature, setSavedSignature] = useState(() => documentSignature("قالب جدید", initialDocument));
 
   const rootRef = useRef<HTMLElement | null>(null);
   const gatewayRef = useRef<LabelTemplateGateway | null>(null);
   const clipboardRef = useRef<LabelElement | null>(null);
+  const pendingTransitionRef = useRef<(() => void) | null>(null);
   const editorRef = useRef(editor);
   editorRef.current = editor;
 
   const current = useMemo(() => selectedElement(editor), [editor]);
+  const dirty = documentSignature(templateName, editor.document) !== savedSignature;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+
+  const requestTransition = useCallback((action: () => void): void => {
+    if (!dirtyRef.current) {
+      action();
+      return;
+    }
+    pendingTransitionRef.current = action;
+    setDirtyDialogOpen(true);
+  }, []);
+
+  const finishPendingTransition = useCallback((): void => {
+    const action = pendingTransitionRef.current;
+    pendingTransitionRef.current = null;
+    setDirtyDialogOpen(false);
+    action?.();
+  }, []);
+
+  useEffect(() => {
+    onRegisterLeaveGuard?.(requestTransition);
+    return () => onRegisterLeaveGuard?.(null);
+  }, [onRegisterLeaveGuard, requestTransition]);
+
+  useEffect(() => {
+    const protectUnsavedDocument = (event: BeforeUnloadEvent): void => {
+      if (!dirtyRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", protectUnsavedDocument);
+    return () => window.removeEventListener("beforeunload", protectUnsavedDocument);
+  }, []);
 
   const gateway = useCallback(async (): Promise<LabelTemplateGateway> => {
     if (gatewayRef.current === null) {
@@ -113,9 +158,6 @@ export function LabelDesignerPage({
   /** Loads a saved template's complete designer document into the canvas. */
   const openTemplate = useCallback(async (view: SavedLabelTemplateView, instance?: LabelTemplateGateway) => {
     const active = instance ?? (await gateway());
-    setActiveTemplateId(String(view.id));
-    setTemplateName(view.name);
-
     let document: LabelTemplateDocument | null = null;
     try {
       document = await active.loadTemplate(view.id);
@@ -124,15 +166,7 @@ export function LabelDesignerPage({
       return;
     }
     if (document === null) {
-      setEditor(replaceDocument(
-        editorRef.current,
-        createLabelDocument({
-          widthMm: view.widthMm,
-          heightMm: view.heightMm,
-          elements: [],
-        }),
-        null,
-      ));
+      setNotice("قالب ذخیره‌شده دیگر وجود ندارد");
       return;
     }
 
@@ -151,31 +185,29 @@ export function LabelDesignerPage({
       setNotice(parsed.issues[0]?.message ?? "قالب ذخیره‌شده خوانده نشد");
       return;
     }
+    setActiveTemplateId(String(view.id));
+    setTemplateName(view.name);
     setEditor(replaceDocument(editorRef.current, parsed.document));
+    setSavedSignature(documentSignature(view.name, parsed.document));
   }, [gateway]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    gateway()
-      .then(async instance => {
-        gatewayRef.current = instance;
-        const saved = await instance.listTemplates();
-        if (cancelled) return;
-        setTemplates(saved);
-        setStatus("ready");
-        const first = saved.find(candidate => candidate.isDefault) ?? saved[0];
-        if (first !== undefined) await openTemplate(first, instance);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStatus("error");
-      });
-
-    return () => {
-      cancelled = true;
-    };
+  const loadInitialTemplates = useCallback(async (): Promise<void> => {
+    setStatus("loading");
+    setTemplates([]);
+    try {
+      const instance = await gateway();
+      const saved = await instance.listTemplates();
+      setTemplates(saved);
+      setStatus("ready");
+      const first = saved.find(candidate => candidate.isDefault) ?? saved[0];
+      if (first !== undefined) await openTemplate(first, instance);
+    } catch {
+      setTemplates([]);
+      setStatus("error");
+    }
   }, [gateway, openTemplate]);
+
+  useEffect(() => { void loadInitialTemplates(); }, [loadInitialTemplates]);
 
   const runCommand = useCallback((command: EditorCommand) => {
     const state = editorRef.current;
@@ -238,13 +270,13 @@ export function LabelDesignerPage({
     elements: state.document.elements.map(element => ({ ...element })),
   });
 
-  const persist = async (name: string, targetId: string | null): Promise<void> => {
+  const persist = async (name: string, targetId: string | null): Promise<boolean> => {
     const candidate = documentFromEditor(editorRef.current);
     const document: LabelTemplateDocument = { ...candidate, name };
     const issues = validateLabelTemplate(document);
     if (issues.length > 0) {
       window.alert(issues[0]!.message);
-      return;
+      return false;
     }
 
     const instance = await gateway();
@@ -257,23 +289,26 @@ export function LabelDesignerPage({
       const updated = await instance.updateTemplate(targetId, document);
       if (updated === null) {
         window.alert("قالب یافت نشد؛ فهرست تازه‌سازی شد");
+        await refreshTemplates(instance);
+        return false;
       } else {
         setTemplateName(name);
         setNotice(`قالب «${name}» به‌روزرسانی شد`);
       }
     }
     await refreshTemplates(instance);
+    setSavedSignature(documentSignature(name, editorRef.current.document));
+    return true;
   };
 
-  const handleSaveTemplate = async (): Promise<void> => {
+  const handleSaveTemplate = async (): Promise<boolean> => {
     if (activeTemplateId !== null) {
-      await persist(templateName, activeTemplateId);
-      return;
+      return persist(templateName, activeTemplateId);
     }
 
     const name = window.prompt("نام قالب جدید:", "قالب جدید");
-    if (name === null) return;
-    await persist(name.trim(), null);
+    if (name === null) return false;
+    return persist(name.trim(), null);
   };
 
   const handleSaveCopy = async (): Promise<void> => {
@@ -307,20 +342,30 @@ export function LabelDesignerPage({
       window.alert("قالب یافت نشد؛ فهرست تازه‌سازی شد");
     } else if (String(template.id) === activeTemplateId) {
       setTemplateName(document.name);
+      setSavedSignature(documentSignature(document.name, editorRef.current.document));
     }
     await refreshTemplates(instance);
   };
 
-  const handleDeleteTemplate = async (template: SavedLabelTemplateView): Promise<void> => {
+  const deleteTemplate = async (template: SavedLabelTemplateView): Promise<void> => {
     if (!window.confirm(`قالب «${template.name}» حذف شود؟`)) return;
 
     const instance = await gateway();
     await instance.deleteTemplate(template.id);
     if (String(template.id) === activeTemplateId) {
+      const document = emptyDocument();
       setActiveTemplateId(null);
-      setEditor(replaceDocument(editorRef.current, emptyDocument(), null));
+      setTemplateName("قالب جدید");
+      setEditor(replaceDocument(editorRef.current, document, null));
+      setSavedSignature(documentSignature("قالب جدید", document));
     }
     await refreshTemplates(instance);
+  };
+
+  const handleDeleteTemplate = (template: SavedLabelTemplateView): void => {
+    const remove = (): void => { void deleteTemplate(template); };
+    if (String(template.id) === activeTemplateId) requestTransition(remove);
+    else remove();
   };
 
   const beginGesture = useCallback(() => {
@@ -341,11 +386,22 @@ export function LabelDesignerPage({
     setNotice(null);
   };
 
-  const handleNewTemplate = (): void => {
+  const createNewTemplate = (): void => {
+    const document = emptyDocument();
     setActiveTemplateId(null);
     setTemplateName("قالب جدید");
-    setEditor(replaceDocument(editorRef.current, emptyDocument(), null));
+    setEditor(replaceDocument(editorRef.current, document, null));
+    setSavedSignature(documentSignature("قالب جدید", document));
     setNotice("بوم طراحی خالی شد");
+  };
+
+  const handleNewTemplate = (): void => requestTransition(createNewTemplate);
+
+  const requestOpenTemplate = (template: SavedLabelTemplateView): void => {
+    requestTransition(() => {
+      setOpenPicker(false);
+      void openTemplate(template);
+    });
   };
 
   const handleAlignSelected = (): void => {
@@ -380,7 +436,7 @@ export function LabelDesignerPage({
     <main className="label-designer-page" data-testid="label-designer-page" ref={rootRef}>
       <div className="label-designer-toolbar" role="toolbar" aria-label="عملیات طراحی لیبل">
         <button type="button" onClick={handleNewTemplate} title="قالب جدید"><FilePlus2 size={19} />جدید</button>
-        <button type="button" onClick={() => { const active = templates.find(item => String(item.id) === activeTemplateId); if (active) void openTemplate(active); }} title="بارگذاری قالب فعال"><FolderOpen size={19} />باز کردن</button>
+        <button type="button" onClick={() => setOpenPicker(true)} title="انتخاب قالب ذخیره‌شده"><FolderOpen size={19} />باز کردن</button>
         <button type="button" className="accent" onClick={() => void handleSaveTemplate()} title="ذخیره قالب"><Save size={19} />ذخیره</button>
         <button type="button" onClick={() => void handleSaveCopy()} title="ذخیره به عنوان نسخه جدید"><Copy size={19} />ذخیره نسخه</button>
         <button type="button" disabled={!canUndo(editor)} onClick={() => setEditor(undo)} title="بازگشت (Ctrl+Z)"><Undo2 size={19} />بازگشت</button>
@@ -448,9 +504,9 @@ export function LabelDesignerPage({
           </header>
           <div role="list" aria-label="قالب‌های ذخیره‌شده" className={`label-template-list ${listMode}`}>
             {status === "loading" && <p className="label-templates-empty" role="status">در حال بارگذاری قالب‌ها…</p>}
-            {status === "error" && <p className="label-templates-empty" role="alert">بارگذاری قالب‌ها ناموفق بود؛ داده نمایشی در حال استفاده است</p>}
-            {status === "ready" && templates.length === 0 && <p className="label-templates-empty" role="status">قالب ذخیره‌شده‌ای وجود نیست</p>}
-            {templates.map((template, index) => (
+            {status === "error" && <p className="label-templates-empty" role="alert">بارگذاری قالب‌ها ناموفق بود <button type="button" onClick={() => void loadInitialTemplates()}>تلاش دوباره</button></p>}
+            {status === "ready" && templates.length === 0 && <p className="label-templates-empty" role="status">قالب ذخیره‌شده‌ای وجود ندارد</p>}
+            {status === "ready" && templates.map(template => (
               <article
                 role="listitem"
                 key={String(template.id)}
@@ -461,17 +517,17 @@ export function LabelDesignerPage({
                   type="button"
                   className="label-template-open"
                   aria-label={`باز کردن قالب ${template.name}`}
-                  onClick={() => void openTemplate(template)}
+                  onClick={() => requestOpenTemplate(template)}
                 >
                   <span className="label-template-image">
-                    <img src={designerTemplates[index % designerTemplates.length]} alt={`قالب ${template.name}`} />
+                    <TemplatePreview name={template.name} load={async () => (await gateway()).loadTemplate(template.id)} />
                   </span>
                   <span>{template.name}</span>
                 </button>
                 {manageMode && (
                   <span className="label-template-manage">
                     <button type="button" aria-label={`تغییر نام قالب ${template.name}`} onClick={() => void handleRenameTemplate(template)}><Pencil size={12} /></button>
-                    <button type="button" aria-label={`حذف قالب ${template.name}`} onClick={() => void handleDeleteTemplate(template)}><Trash2 size={12} /></button>
+                    <button type="button" aria-label={`حذف قالب ${template.name}`} onClick={() => handleDeleteTemplate(template)}><Trash2 size={12} /></button>
                   </span>
                 )}
               </article>
@@ -481,6 +537,25 @@ export function LabelDesignerPage({
       </div>
 
       {notice !== null && <p className="label-designer-notice" role="status">{notice}</p>}
+      {openPicker && <div className="label-template-picker" role="dialog" aria-modal="true" aria-label="باز کردن قالب">
+        <div>
+          <header><b>انتخاب قالب ذخیره‌شده</b><button type="button" aria-label="بستن انتخاب قالب" onClick={() => setOpenPicker(false)}>×</button></header>
+          {templates.length === 0 ? <p>قالب ذخیره‌شده‌ای وجود ندارد</p> : templates.map(template => (
+            <button key={String(template.id)} type="button" onClick={() => requestOpenTemplate(template)}>{template.name}</button>
+          ))}
+        </div>
+      </div>}
+      {dirtyDialogOpen && <div className="label-template-picker label-dirty-dialog" role="dialog" aria-modal="true" aria-label="تغییرات ذخیره‌نشده">
+        <div>
+          <header><b>تغییرات ذخیره‌نشده</b></header>
+          <p>پیش از ادامه، تغییرات این قالب را ذخیره کنید؟</p>
+          <span className="label-dirty-actions">
+            <button type="button" className="accent" onClick={() => { void handleSaveTemplate().then(saved => { if (saved) finishPendingTransition(); }); }}>ذخیره</button>
+            <button type="button" onClick={finishPendingTransition}>نادیده گرفتن</button>
+            <button type="button" onClick={() => { pendingTransitionRef.current = null; setDirtyDialogOpen(false); }}>لغو</button>
+          </span>
+        </div>
+      </div>}
     </main>
   );
 }

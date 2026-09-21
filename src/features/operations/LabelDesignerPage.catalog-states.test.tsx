@@ -18,7 +18,17 @@ const gatewayStub = (initial: readonly SavedLabelTemplateView[]) => {
   let templates = [...initial];
   return {
     listTemplates: vi.fn(async () => templates),
-    loadTemplate: vi.fn(async () => null),
+    loadTemplate: vi.fn(async (id: string) => {
+      const view = templates.find(item => String(item.id) === String(id));
+      return view ? {
+        name: view.name,
+        templateKind: view.templateKind,
+        widthMm: view.widthMm,
+        heightMm: view.heightMm,
+        version: 1,
+        elements: [{ kind: "text", id: "text-1", text: view.name, xMm: 3, yMm: 3, widthMm: 20, heightMm: 6 }],
+      } : null;
+    }),
     saveTemplate: vi.fn(async (document: { name: string }) => {
       const view = template(document.name);
       templates = [...templates, view];
@@ -63,7 +73,7 @@ describe("Label Designer saved-template lifecycle", () => {
     render(<LabelDesignerPage />);
 
     const templates = screen.getByRole("list", { name: "قالب‌های ذخیره‌شده" });
-    await waitFor(() => expect(within(templates).getByRole("status")).toHaveTextContent("قالب ذخیره‌شده‌ای وجود نیست"));
+    await waitFor(() => expect(within(templates).getByRole("status")).toHaveTextContent("قالب ذخیره‌شده‌ای وجود ندارد"));
   });
 
   it("loads saved templates from the gateway and marks the first card active", async () => {
@@ -73,11 +83,35 @@ describe("Label Designer saved-template lifecycle", () => {
 
     const templates = screen.getByRole("list", { name: "قالب‌های ذخیره‌شده" });
     await waitFor(() =>
-      expect(within(templates).getAllByRole("img").map(image => image.getAttribute("alt"))).toEqual([
-        "قالب پلاک طلایی", "قالب گوشواره",
+      expect(within(templates).getAllByRole("img").map(image => image.getAttribute("aria-label"))).toEqual([
+        "پیش‌نمایش واقعی قالب پلاک طلایی", "پیش‌نمایش واقعی قالب گوشواره",
       ]),
     );
     expect(within(templates).getAllByRole("listitem")[0]).toHaveClass("active");
+  });
+
+  it("shows a retryable error without rendering fake saved templates", async () => {
+    const recovered = gatewayStub([]);
+    mockGateway.mockRejectedValueOnce(new Error("database unavailable")).mockResolvedValue(recovered);
+
+    render(<LabelDesignerPage />);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("بارگذاری قالب‌ها ناموفق بود");
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    fireEvent.click(within(alert).getByRole("button", { name: "تلاش دوباره" }));
+    await waitFor(() => expect(recovered.listTemplates).toHaveBeenCalled());
+    expect(await screen.findByText("قالب ذخیره‌شده‌ای وجود ندارد")).toBeInTheDocument();
+  });
+
+  it("opens a real saved-template picker from the Open command", async () => {
+    mockGateway.mockResolvedValue(gatewayStub([template("قالب اول"), template("قالب دوم")]));
+    render(<LabelDesignerPage />);
+    await screen.findByRole("button", { name: "باز کردن قالب قالب اول" });
+
+    fireEvent.click(screen.getByRole("button", { name: "باز کردن" }));
+    const dialog = screen.getByRole("dialog", { name: "باز کردن قالب" });
+    expect(within(dialog).getByRole("button", { name: "قالب دوم" })).toBeInTheDocument();
   });
 
   it("saves a named template and refreshes the list from the gateway", async () => {
@@ -134,7 +168,7 @@ describe("Label Designer saved-template lifecycle", () => {
     await waitFor(() => expect(gateway.updateTemplate).toHaveBeenCalledTimes(1));
     expect(gateway.updateTemplate.mock.calls[0]?.[1]).toMatchObject({ name: "قالب انگشتر طرح گل" });
     await waitFor(() =>
-      expect(within(templates).getByText("قالب انگشتر طرح گل")).toBeInTheDocument(),
+      expect(within(templates).getByRole("button", { name: "باز کردن قالب قالب انگشتر طرح گل" })).toBeInTheDocument(),
     );
   });
 
@@ -168,7 +202,7 @@ describe("Label Designer saved-template lifecycle", () => {
     fireEvent.click(within(templates).getByRole("button", { name: "حذف قالب قالب پلاک" }));
 
     await waitFor(() => expect(gateway.deleteTemplate).not.toHaveBeenCalled());
-    expect(within(templates).getByText("قالب پلاک")).toBeInTheDocument();
+    expect(within(templates).getByRole("button", { name: "باز کردن قالب قالب پلاک" })).toBeInTheDocument();
   });
 
   it("falls back to the currently loaded list when persistence reports the template missing", async () => {
