@@ -1,5 +1,22 @@
 import type { EntityId } from "../../types/persistence";
 
+export type CorruptLabelTemplateReason = "malformed-json" | "invalid-layout";
+
+/** Safe load failure: identifies the row and category, never its raw contents. */
+export class CorruptLabelTemplateError extends Error {
+  readonly code = "corrupt-label-template" as const;
+
+  constructor(
+    readonly templateId: string,
+    readonly reason: CorruptLabelTemplateReason,
+  ) {
+    super(reason === "malformed-json"
+      ? "محتوای قالب ذخیره‌شده قابل خواندن نیست"
+      : "ساختار قالب ذخیره‌شده نامعتبر است");
+    this.name = "CorruptLabelTemplateError";
+  }
+}
+
 /** One designer element as stored inside the template document JSON. */
 export type LabelTemplateElement = Readonly<Record<string, unknown>>;
 

@@ -1,11 +1,17 @@
 import type { LabelTemplateRepository } from "../../repositories/label-template-repository";
 import { asUtcIsoString, type EntityId } from "../../types/persistence";
-import { LABEL_DOCUMENT_VERSION, LABEL_UNIT } from "../label-designer/label-document";
+import {
+  LABEL_DOCUMENT_VERSION,
+  LABEL_UNIT,
+  parseLabelDocument,
+  type LabelDocument,
+} from "../label-designer/label-document";
 import type {
   LabelTemplateDocument,
   LabelTemplateGateway,
   SavedLabelTemplateView,
 } from "./template-contract";
+import { CorruptLabelTemplateError } from "./template-contract";
 
 const LAYOUT_VERSION = LABEL_DOCUMENT_VERSION;
 
@@ -23,28 +29,38 @@ const encodeLayout = (document: LabelTemplateDocument): string =>
     elements: [...document.elements],
   });
 
-type StoredLayout = Readonly<{
-  version?: number;
-  widthMm?: number;
-  heightMm?: number;
-  elements?: readonly Record<string, unknown>[];
-}>;
-
 /**
- * A row written by an older build, or one that was corrupted outside the app,
- * must not raise inside the designer. The raw text is preserved and the caller
- * receives an empty layout it can report on.
+ * Decodes both complete documents and legacy top-level element arrays. Invalid
+ * text is never converted into an empty design because that could later be
+ * saved over the original row.
  */
-const decodeLayout = (layoutJson: string): StoredLayout => {
+const decodeLayout = (
+  layoutJson: string,
+  templateId: string,
+  fallback: { widthMm: number; heightMm: number },
+): LabelDocument => {
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(layoutJson);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return Array.isArray(parsed) ? { elements: parsed as readonly Record<string, unknown>[] } : {};
-    }
-    return parsed as StoredLayout;
+    parsed = JSON.parse(layoutJson);
   } catch {
-    return {};
+    throw new CorruptLabelTemplateError(templateId, "malformed-json");
   }
+
+  if (parsed === null || typeof parsed !== "object") {
+    throw new CorruptLabelTemplateError(templateId, "invalid-layout");
+  }
+  if (!Array.isArray(parsed)) {
+    const record = parsed as Record<string, unknown>;
+    if (record.elements !== undefined && !Array.isArray(record.elements)) {
+      throw new CorruptLabelTemplateError(templateId, "invalid-layout");
+    }
+  }
+
+  const result = parseLabelDocument(layoutJson, fallback);
+  if (result.document === null) {
+    throw new CorruptLabelTemplateError(templateId, "invalid-layout");
+  }
+  return result.document;
 };
 
 const toView = (
@@ -80,15 +96,18 @@ export class PersistenceTemplateGateway implements LabelTemplateGateway {
     const record = await this.repository.findActiveById(id);
     if (!record) return null;
 
-    const layout = decodeLayout(record.layoutJson);
+    const layout = decodeLayout(record.layoutJson, String(record.id), {
+      widthMm: record.widthMm,
+      heightMm: record.heightMm,
+    });
 
     return {
       name: record.name,
       templateKind: record.templateKind,
-      widthMm: typeof layout.widthMm === "number" ? layout.widthMm : record.widthMm,
-      heightMm: typeof layout.heightMm === "number" ? layout.heightMm : record.heightMm,
-      version: typeof layout.version === "number" ? layout.version : undefined,
-      elements: Array.isArray(layout.elements) ? layout.elements : [],
+      widthMm: layout.widthMm,
+      heightMm: layout.heightMm,
+      version: layout.version,
+      elements: layout.elements as unknown as LabelTemplateDocument["elements"],
     };
   }
 

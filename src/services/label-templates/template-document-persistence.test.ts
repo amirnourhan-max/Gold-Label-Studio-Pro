@@ -3,6 +3,7 @@ import { LabelTemplateRepository } from "../../repositories/label-template-repos
 import { InMemoryTemplateStore } from "./test-support/in-memory-template-store";
 import { PersistenceTemplateGateway } from "./persistence-template-gateway";
 import type { LabelTemplateDocument } from "./template-contract";
+import { CorruptLabelTemplateError } from "./template-contract";
 import { LABEL_DOCUMENT_VERSION, parseLabelDocument } from "../label-designer/label-document";
 
 const designerDocument: LabelTemplateDocument = {
@@ -218,12 +219,63 @@ describe("label template document persistence", () => {
     }]);
 
     const gateway = repositoryOver(store);
-    const loaded = await gateway.loadTemplate("template-broken");
 
-    // The stored text is preserved byte for byte and the caller gets an empty layout.
+    await expect(gateway.loadTemplate("template-broken")).rejects.toEqual(
+      expect.objectContaining<Partial<CorruptLabelTemplateError>>({
+        code: "corrupt-label-template",
+        templateId: "template-broken",
+        reason: "malformed-json",
+      }),
+    );
+    // The stored text is preserved byte for byte and is never exposed in the error.
     expect(store.snapshot()[0]!.layout_json).toBe("{ this is not json");
-    expect(loaded?.elements).toEqual([]);
     expect(parseLabelDocument("{ this is not json", { widthMm: 50, heightMm: 30 }).issues).toHaveLength(1);
+  });
+
+  it("rejects an invalid persisted document shape without changing the row", async () => {
+    const invalidLayout = JSON.stringify({ version: 1, widthMm: 50, heightMm: 30, elements: { kind: "text" } });
+    const store = new InMemoryTemplateStore([{
+      id: "template-invalid-shape",
+      name: "قالب نامعتبر",
+      template_kind: "product",
+      width_mm: 50,
+      height_mm: 30,
+      layout_json: invalidLayout,
+      is_default: 0,
+      is_active: 1,
+      created_at: "2026-09-13T10:00:00.000Z",
+      updated_at: "2026-09-13T10:00:00.000Z",
+    }]);
+
+    await expect(repositoryOver(store).loadTemplate("template-invalid-shape")).rejects.toMatchObject({
+      code: "corrupt-label-template",
+      templateId: "template-invalid-shape",
+      reason: "invalid-layout",
+    });
+    expect(store.snapshot()[0]!.layout_json).toBe(invalidLayout);
+  });
+
+  it("loads a valid legacy element array as a canonical document", async () => {
+    const legacyLayout = JSON.stringify([{ type: "text", x: 3, y: 4, width: 20, height: 6, content: "قدیمی" }]);
+    const store = new InMemoryTemplateStore([{
+      id: "template-legacy",
+      name: "قالب قدیمی",
+      template_kind: "product",
+      width_mm: 45,
+      height_mm: 22,
+      layout_json: legacyLayout,
+      is_default: 0,
+      is_active: 1,
+      created_at: "2026-09-13T10:00:00.000Z",
+      updated_at: "2026-09-13T10:00:00.000Z",
+    }]);
+
+    const loaded = await repositoryOver(store).loadTemplate("template-legacy");
+
+    expect(loaded).toMatchObject({ widthMm: 45, heightMm: 22, version: LABEL_DOCUMENT_VERSION });
+    expect(loaded?.elements).toEqual([
+      expect.objectContaining({ kind: "text", xMm: 3, yMm: 4, widthMm: 20, heightMm: 6, text: "قدیمی" }),
+    ]);
   });
 
   it("does not surface a soft-deleted template in the active list", async () => {

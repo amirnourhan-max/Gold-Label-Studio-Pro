@@ -4,6 +4,7 @@ import { PersistenceTemplateGateway } from "./persistence-template-gateway";
 import type { LabelTemplateRepository } from "../../repositories/label-template-repository";
 import type { LabelTemplateRecord } from "../../types/persistence";
 import type { LabelTemplateDocument } from "./template-contract";
+import { CorruptLabelTemplateError } from "./template-contract";
 
 const document: LabelTemplateDocument = {
   name: "قالب آزمایشی",
@@ -100,8 +101,24 @@ describe("PersistenceTemplateGateway", () => {
       widthMm: 50,
       heightMm: 30,
       version: 1,
-      elements: [{ type: "qr" }],
+      elements: [expect.objectContaining({ id: "element-1", kind: "qr" })],
     });
+  });
+
+  it("surfaces malformed JSON as a typed safe error", async () => {
+    const gateway = gatewayWith({
+      findActiveById: async () => record({ layoutJson: "{broken" }),
+    });
+
+    const error = await gateway.loadTemplate("template-1").catch(reason => reason);
+
+    expect(error).toBeInstanceOf(CorruptLabelTemplateError);
+    expect(error).toMatchObject({
+      code: "corrupt-label-template",
+      templateId: "template-1",
+      reason: "malformed-json",
+    });
+    expect(String(error)).not.toContain("{broken");
   });
 
   it("saves a template through the repository with generated id and UTC timestamp", async () => {
