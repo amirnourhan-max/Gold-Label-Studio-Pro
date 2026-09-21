@@ -9,6 +9,10 @@ const AcceptanceHarness = import.meta.env.VITE_ACCEPTANCE_MODE === "1"
   ? lazy(() => import("../features/auth/AcceptanceHarness").then(module => ({ default: module.AcceptanceHarness })))
   : null;
 
+const VisualTestApp = import.meta.env.VITE_VISUAL_TEST_MODE === "1"
+  ? lazy(() => import("./VisualTestApp").then(module => ({ default: module.VisualTestApp })))
+  : null;
+
 function initialRoute(): ShellRoute {
   const requested = new URLSearchParams(window.location.search).get("page");
   return resolveShellRoute(requested);
@@ -16,6 +20,10 @@ function initialRoute(): ShellRoute {
 
 export function App(){
   const [activePage, setActivePage] = useState<ShellRoute>(initialRoute);
+
+  if (VisualTestApp !== null) {
+    return <Suspense fallback={null}><VisualTestApp /></Suspense>;
+  }
 
   return <AuthSessionProvider>
     {AcceptanceHarness ? <Suspense fallback={null}><AcceptanceHarness /></Suspense> : null}

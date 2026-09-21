@@ -17,6 +17,7 @@ on:
         final-functional-integration,
         final-audit-release,
         acceptance-fix-v0.2.2,
+        label-designer-repair-v0.2.3,
       ]
 
 jobs:
@@ -36,6 +37,12 @@ jobs:
 
       - name: Frontend production build
         run: npm run build
+
+      - name: Assert production bundle excludes visual-test harness
+        shell: powershell
+        run: |
+          $matches = Get-ChildItem "dist\assets\*.js" | Select-String -Pattern "GLSP-VISUAL|قالب بررسی تصویری"
+          if ($matches) { throw "Production frontend contains the Label Designer visual-test harness" }
 
       - name: Validate Tauri window permissions
         shell: powershell
@@ -91,12 +98,6 @@ jobs:
               @{ Name = "returns-1536x864"; Page = "returns"; Size = "1536,864" },
               @{ Name = "returns-1600x900"; Page = "returns"; Size = "1600,900" },
               @{ Name = "returns-1920x1080"; Page = "returns"; Size = "1920,1080" },
-              @{ Name = "label-designer-1366x768"; Page = "label-designer"; Size = "1366,768" },
-              @{ Name = "label-designer-1440x900"; Page = "label-designer"; Size = "1440,900" },
-              @{ Name = "label-designer-1448x1086"; Page = "label-designer"; Size = "1448,1086" },
-              @{ Name = "label-designer-1536x864"; Page = "label-designer"; Size = "1536,864" },
-              @{ Name = "label-designer-1600x900"; Page = "label-designer"; Size = "1600,900" },
-              @{ Name = "label-designer-1920x1080"; Page = "label-designer"; Size = "1920,1080" },
               @{ Name = "packaging-1366x768"; Page = "packaging"; Size = "1366,768" },
               @{ Name = "packaging-1440x900"; Page = "packaging"; Size = "1440,900" },
               @{ Name = "packaging-1448x1086"; Page = "packaging"; Size = "1448,1086" },
@@ -122,6 +123,38 @@ jobs:
                 Start-Sleep -Milliseconds 500
               }
               if (!(Test-Path $output)) { throw "Visual check was not created: $($check.Name)" }
+            }
+          } finally {
+            if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
+          }
+
+      - name: Capture real Label Designer visual checks
+        shell: powershell
+        env:
+          VITE_VISUAL_TEST_MODE: "1"
+        run: |
+          npm run build
+          $server = Start-Process -FilePath "cmd.exe" -ArgumentList "/c","npm run preview -- --host 127.0.0.1 --port 4173" -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 45; $i++) {
+              try {
+                $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:4173" -TimeoutSec 2
+                if ($response.StatusCode -eq 200) { $ready = $true; break }
+              } catch {}
+              Start-Sleep -Seconds 1
+            }
+            if (-not $ready) { throw "Vite visual-test preview did not become ready" }
+
+            $edge = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+            if (!(Test-Path $edge)) { $edge = "C:\Program Files\Microsoft\Edge\Application\msedge.exe" }
+            if (!(Test-Path $edge)) { throw "Microsoft Edge executable not found" }
+
+            $sizes = @("1366,768", "1440,900", "1448,1086", "1536,864", "1600,900", "1920,1080")
+            foreach ($size in $sizes) {
+              $name = "label-designer-$($size.Replace(',', 'x'))"
+              npm run visual:capture -- --url "http://127.0.0.1:4173/?page=label-designer" --size $size --output "$pwd\visual-checks\$name.png" --browser $edge
+              if ($LASTEXITCODE -ne 0) { throw "Label Designer visual check failed: $name" }
             }
           } finally {
             if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }

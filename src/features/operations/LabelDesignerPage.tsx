@@ -68,7 +68,13 @@ const emptyDocument = (): LabelDocument =>
     elements: [],
   });
 
-export function LabelDesignerPage({ print = labelPrintWorkflow }: { print?: LabelPrintWorkflow } = {}) {
+export function LabelDesignerPage({
+  print = labelPrintWorkflow,
+  templateGateway,
+}: {
+  print?: LabelPrintWorkflow;
+  templateGateway?: LabelTemplateGateway | Promise<LabelTemplateGateway>;
+} = {}) {
   const [editor, setEditor] = useState<LabelEditorState>(() => createEditorState(emptyDocument()));
   const [templates, setTemplates] = useState<readonly SavedLabelTemplateView[]>(approvedSavedTemplateViews);
   const [status, setStatus] = useState<TemplatesStatus>("loading");
@@ -93,9 +99,11 @@ export function LabelDesignerPage({ print = labelPrintWorkflow }: { print?: Labe
   const current = useMemo(() => selectedElement(editor), [editor]);
 
   const gateway = useCallback(async (): Promise<LabelTemplateGateway> => {
-    if (gatewayRef.current === null) gatewayRef.current = await createDefaultTemplateGateway();
+    if (gatewayRef.current === null) {
+      gatewayRef.current = await (templateGateway ?? createDefaultTemplateGateway());
+    }
     return gatewayRef.current;
-  }, []);
+  }, [templateGateway]);
 
   const refreshTemplates = useCallback(async (instance: LabelTemplateGateway) => {
     setTemplates(await instance.listTemplates());
@@ -148,7 +156,7 @@ export function LabelDesignerPage({ print = labelPrintWorkflow }: { print?: Labe
   useEffect(() => {
     let cancelled = false;
 
-    createDefaultTemplateGateway()
+    gateway()
       .then(async instance => {
         gatewayRef.current = instance;
         const saved = await instance.listTemplates();
@@ -166,7 +174,7 @@ export function LabelDesignerPage({ print = labelPrintWorkflow }: { print?: Labe
     return () => {
       cancelled = true;
     };
-  }, [openTemplate]);
+  }, [gateway, openTemplate]);
 
   const runCommand = useCallback((command: EditorCommand) => {
     const state = editorRef.current;

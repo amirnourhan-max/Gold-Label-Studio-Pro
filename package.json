@@ -9,7 +9,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "tauri": "tauri",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "visual:capture": "node scripts/capture-visual-checks.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^25.0.0",
+    "playwright-core": "^1.63.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
     "vitest": "^3.0.0"
