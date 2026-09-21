@@ -1,17 +1,38 @@
+import { encodeCode128B } from "../label-designer/barcode-symbol";
+import {
+  LABEL_MIN_ELEMENT_MM,
+  parseLabelDocument,
+  type LabelDocument,
+  type LabelElement,
+  type LabelRotation,
+  type LabelTextAlign,
+} from "../label-designer/label-document";
+import {
+  EMPTY_LABEL_DATA_CONTEXT,
+  resolveLabelText,
+  type LabelDataContext,
+} from "../label-designer/label-bindings";
+import { buildQrMatrix, QR_QUIET_ZONE_MODULES } from "../label-designer/qr-symbol";
+
 /**
- * Printer-neutral label model. Renderers (ZPL/TSPL) turn this into device
- * commands; the designer's persisted layout JSON is mapped onto it on a
- * best-effort basis.
+ * Printer-neutral label model. It is the single normalised form between the
+ * persisted designer document and the ZPL/TSPL renderers, and it is expressed
+ * entirely in millimetres.
  */
 export type LabelTextElement = Readonly<{
   kind: "text";
   xMm: number;
   yMm: number;
   content: string;
-  /** Font height in millimetres (defaults to 3.2mm ≈ 26 dots at 203dpi). */
+  /** Font cell height in millimetres. */
   heightMm?: number;
-  /** Font width in millimetres. */
+  /** Font cell width in millimetres. */
   widthMm?: number;
+  rotation?: LabelRotation;
+  align?: LabelTextAlign;
+  bold?: boolean;
+  /** Box used for ZPL alignment; the element width in millimetres. */
+  boxWidthMm?: number;
 }>;
 
 export type LabelQrElement = Readonly<{
@@ -22,6 +43,7 @@ export type LabelQrElement = Readonly<{
   /** Module size in millimetres (magnification). */
   moduleMm?: number;
   errorCorrection?: "L" | "M" | "Q" | "H";
+  rotation?: LabelRotation;
 }>;
 
 export type LabelImageElement = Readonly<{
@@ -34,7 +56,44 @@ export type LabelImageElement = Readonly<{
   label: string;
 }>;
 
-export type LabelPrintElement = LabelTextElement | LabelQrElement | LabelImageElement;
+export type LabelLineElement = Readonly<{
+  kind: "line";
+  xMm: number;
+  yMm: number;
+  widthMm: number;
+  heightMm: number;
+  thicknessMm: number;
+}>;
+
+export type LabelFrameElement = Readonly<{
+  kind: "frame";
+  xMm: number;
+  yMm: number;
+  widthMm: number;
+  heightMm: number;
+  thicknessMm: number;
+}>;
+
+export type LabelBarcodeElement = Readonly<{
+  kind: "barcode";
+  xMm: number;
+  yMm: number;
+  widthMm: number;
+  heightMm: number;
+  content: string;
+  rotation: LabelRotation;
+  humanReadable: boolean;
+  /** Narrow bar width in millimetres; derived from the encoded module count. */
+  narrowMm: number;
+}>;
+
+export type LabelPrintElement =
+  | LabelTextElement
+  | LabelQrElement
+  | LabelImageElement
+  | LabelLineElement
+  | LabelFrameElement
+  | LabelBarcodeElement;
 
 export type LabelPrintModel = Readonly<{
   name: string;
@@ -45,9 +104,21 @@ export type LabelPrintModel = Readonly<{
 }>;
 
 /** 203 dpi print heads: 8 dots per millimetre. */
+export const DEFAULT_PRINTER_DPI = 203;
 export const DOTS_PER_MM = 8;
+/** ZPL/TSPL font cell width relative to the font height. */
+const FONT_WIDTH_RATIO = 0.8;
+const BOLD_FONT_WIDTH_RATIO = 0.86;
+const FALLBACK_QR_MODULES = 21;
 
-export const mmToDots = (millimetres: number): number => Math.max(1, Math.round(millimetres * DOTS_PER_MM));
+export const dotsPerMmForDpi = (dpi: number): number =>
+  Number.isFinite(dpi) && dpi > 0 ? dpi / 25.4 : DEFAULT_PRINTER_DPI / 25.4;
+
+/** Deterministic millimetre -> printer dot conversion at the configured dpi. */
+export const mmToDotsAtDpi = (millimetres: number, dpi = DEFAULT_PRINTER_DPI): number =>
+  Math.max(1, Math.round(millimetres * dotsPerMmForDpi(dpi)));
+
+export const mmToDots = (millimetres: number): number => mmToDotsAtDpi(millimetres, DEFAULT_PRINTER_DPI);
 
 export const DEFAULT_LABEL_SIZE_MM = { widthMm: 50, heightMm: 30 } as const;
 
@@ -72,97 +143,194 @@ export const createDefaultLabelModel = (options: {
   ],
 });
 
-const asRecord = (value: unknown): Record<string, unknown> | null =>
-  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+const round = (value: number): number => Math.round(value * 1000) / 1000;
 
-const firstString = (record: Record<string, unknown>, keys: readonly string[]): string | null => {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "string" && value.trim().length > 0) return value;
-  }
-  return null;
+const moduleMmFor = (element: LabelElement, moduleCount: number): number => {
+  // The element padding is a real quiet zone, so it shrinks the symbol exactly
+  // the way the designer preview shows it.
+  const side = Math.max(1, Math.min(element.widthMm, element.heightMm) - element.paddingMm * 2);
+  const totalModules = moduleCount + QR_QUIET_ZONE_MODULES * 2;
+  return round(Math.max(0.25, side / totalModules));
 };
 
-const firstNumber = (record: Record<string, unknown>, keys: readonly string[]): number | null => {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string" && value.trim().length > 0 && Number.isFinite(Number(value))) return Number(value);
+/** Kinds whose "show frame" option draws a real box on the printed label. */
+const FRAMEABLE_KINDS: readonly LabelElement["kind"][] = ["text", "field", "qr", "barcode"];
+
+const toPrintElement = (element: LabelElement, context: LabelDataContext): LabelPrintElement | null => {
+  const content = resolveLabelText(element, context);
+  const thicknessMm = Math.max(0.2, element.style.borderWidthMm);
+
+  switch (element.kind) {
+    case "text":
+    case "field":
+      return {
+        kind: "text",
+        xMm: element.xMm,
+        yMm: element.yMm,
+        content,
+        heightMm: round(element.style.fontSizeMm),
+        widthMm: round(element.style.fontSizeMm * (element.style.fontWeight === "bold" ? BOLD_FONT_WIDTH_RATIO : FONT_WIDTH_RATIO)),
+        rotation: element.rotation,
+        align: element.style.align,
+        bold: element.style.fontWeight === "bold",
+        boxWidthMm: element.widthMm,
+      };
+
+    case "qr": {
+      const matrix = buildQrMatrix(content, element.errorCorrection);
+      return {
+        kind: "qr",
+        xMm: element.xMm,
+        yMm: element.yMm,
+        content,
+        moduleMm: moduleMmFor(element, matrix?.moduleCount ?? FALLBACK_QR_MODULES),
+        errorCorrection: element.errorCorrection,
+        rotation: element.rotation,
+      };
+    }
+
+    case "barcode": {
+      const encoding = encodeCode128B(content);
+      if (encoding === null) return null;
+      return {
+        kind: "barcode",
+        xMm: element.xMm,
+        yMm: element.yMm,
+        widthMm: element.widthMm,
+        heightMm: element.heightMm,
+        content,
+        rotation: element.rotation,
+        humanReadable: element.humanReadable,
+        narrowMm: round(Math.max(0.1, element.widthMm / encoding.moduleCount)),
+      };
+    }
+
+    case "line":
+      return {
+        kind: "line",
+        xMm: element.xMm,
+        yMm: element.yMm,
+        widthMm: Math.max(LABEL_MIN_ELEMENT_MM, element.widthMm),
+        heightMm: Math.max(0.2, element.heightMm),
+        thicknessMm,
+      };
+
+    case "frame":
+      return {
+        kind: "frame",
+        xMm: element.xMm,
+        yMm: element.yMm,
+        widthMm: element.widthMm,
+        heightMm: element.heightMm,
+        thicknessMm,
+      };
+
+    case "image":
+      return {
+        kind: "image",
+        xMm: element.xMm,
+        yMm: element.yMm,
+        widthMm: element.widthMm,
+        heightMm: element.heightMm,
+        label: content.trim().length > 0 ? content : "تصویر",
+      };
+
+    default:
+      return null;
   }
-  return null;
 };
 
-const mapElement = (value: unknown): LabelPrintElement | null => {
-  const record = asRecord(value);
-  if (!record) return null;
+/** Builds the normalised print model from the canonical designer document. */
+export const buildLabelPrintModel = (input: {
+  document: LabelDocument;
+  context?: LabelDataContext;
+  name?: string;
+  copies?: number;
+}): LabelPrintModel => {
+  const context = input.context ?? EMPTY_LABEL_DATA_CONTEXT;
+  const elements: LabelPrintElement[] = [];
 
-  const kind = (firstString(record, ["kind", "type", "elementType"]) ?? "").toLowerCase();
-  const xMm = firstNumber(record, ["xMm", "x", "left"]) ?? 0;
-  const yMm = firstNumber(record, ["yMm", "y", "top"]) ?? 0;
-  const content = firstString(record, ["content", "text", "value", "data", "qrContent"]);
+  for (const element of [...input.document.elements].filter(item => item.visible).sort((left, right) => left.zIndex - right.zIndex)) {
+    const mapped = toPrintElement(element, context);
+    if (mapped === null) continue;
 
-  if (kind.includes("qr")) {
-    if (content === null) return null;
-    const moduleMm = firstNumber(record, ["moduleMm", "size", "moduleSize"]);
-    return { kind: "qr", xMm, yMm, moduleMm: moduleMm ?? undefined, content };
+    if (element.showFrame && FRAMEABLE_KINDS.includes(element.kind)) {
+      elements.push({
+        kind: "frame",
+        xMm: element.xMm,
+        yMm: element.yMm,
+        widthMm: element.widthMm,
+        heightMm: element.heightMm,
+        thicknessMm: Math.max(0.2, element.style.borderWidthMm),
+      });
+    }
+    elements.push(mapped);
   }
 
-  if (kind.includes("image") || kind.includes("logo")) {
-    return {
-      kind: "image",
-      xMm,
-      yMm,
-      widthMm: firstNumber(record, ["widthMm", "width", "w"]) ?? 12,
-      heightMm: firstNumber(record, ["heightMm", "height", "h"]) ?? 12,
-      label: content ?? firstString(record, ["label", "name"]) ?? "تصویر",
-    };
-  }
-
-  if (kind.includes("text") || kind.length === 0) {
-    if (content === null) return null;
-    const heightMm = firstNumber(record, ["heightMm", "fontSizeMm", "fontSize", "size"]);
-    const widthMm = firstNumber(record, ["widthMm", "fontWidthMm", "width"]);
-    return { kind: "text", xMm, yMm, content, heightMm: heightMm ?? undefined, widthMm: widthMm ?? undefined };
-  }
-
-  return null;
+  return {
+    name: input.name ?? "قالب لیبل",
+    widthMm: input.document.widthMm,
+    heightMm: input.document.heightMm,
+    copies: input.copies ?? 1,
+    elements,
+  };
 };
+
+export type LabelPrintResolution = Readonly<{
+  model: LabelPrintModel;
+  /** True when the stored document had nothing printable and the approved default was used. */
+  usedFallback: boolean;
+}>;
+
+const defaultResolution = (input: {
+  name?: string;
+  widthMm?: number;
+  heightMm?: number;
+  copies?: number;
+  productName?: string;
+  productCode?: string;
+}): LabelPrintResolution => ({
+  model: createDefaultLabelModel(input),
+  usedFallback: true,
+});
 
 /**
- * Maps a persisted designer document onto the print model. Unknown shapes fall
- * back to the approved default layout so printing never produces an empty label.
+ * Resolves the persisted layout JSON of a saved template into the print model.
+ * A malformed or empty document falls back to the approved default layout so a
+ * print never produces a blank label, and the fallback is reported.
  */
-export const labelPrintModelFromTemplate = (
-  template: Readonly<{ name: string; widthMm: number; heightMm: number; layoutJson?: string | null }>,
-  options: { copies?: number; productName?: string; productCode?: string } = {},
-): LabelPrintModel => {
-  const base = createDefaultLabelModel({
-    name: template.name,
-    widthMm: template.widthMm,
-    heightMm: template.heightMm,
-    copies: options.copies,
-    productName: options.productName,
-    productCode: options.productCode,
+export const resolveLabelPrintModel = (input: {
+  name: string;
+  widthMm: number;
+  heightMm: number;
+  layoutJson?: string | null;
+  copies?: number;
+  context?: LabelDataContext;
+  productName?: string;
+  productCode?: string;
+}): LabelPrintResolution => {
+  const fallbackOptions = {
+    name: input.name,
+    widthMm: input.widthMm,
+    heightMm: input.heightMm,
+    copies: input.copies ?? 1,
+    productName: input.productName,
+    productCode: input.productCode,
+  };
+
+  const { document } = parseLabelDocument(input.layoutJson, {
+    widthMm: input.widthMm,
+    heightMm: input.heightMm,
   });
+  if (document === null || document.elements.length === 0) return defaultResolution(fallbackOptions);
 
-  const raw = template.layoutJson;
-  if (typeof raw !== "string" || raw.trim().length === 0) return base;
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return base;
-  }
-
-  const container = asRecord(parsed);
-  const candidate = Array.isArray(parsed)
-    ? parsed
-    : container && Array.isArray(container.elements)
-      ? (container.elements as unknown[])
-      : null;
-  if (candidate === null) return base;
-
-  const elements = candidate.map(mapElement).filter((element): element is LabelPrintElement => element !== null);
-  return elements.length === 0 ? base : { ...base, elements };
+  const model = buildLabelPrintModel({
+    document,
+    context: input.context,
+    name: input.name,
+    copies: input.copies ?? 1,
+  });
+  if (model.elements.length === 0) return defaultResolution(fallbackOptions);
+  return { model, usedFallback: false };
 };
+

@@ -16,12 +16,16 @@ describe("approved label designer", () => {
     expect(screen.getByRole("region", { name: "قالب‌های ذخیره‌شده" })).toBeInTheDocument();
   });
 
-  it("uses the approved full jewelry label and exposes the reference tools", async () => {
+  it("exposes an editable label surface and the complete real tool list", async () => {
     render(<LabelDesignerPage />);
-    expect(screen.getByAltText("لیبل انگشتر طرح گل")).toHaveAttribute("src", expect.stringContaining("designer-full-label.webp"));
+
+    const surface = screen.getByTestId("label-canvas-surface");
+    expect(surface).toBeInTheDocument();
+    expect(surface).toHaveStyle({ width: "600px", height: "360px" }); // 50x30mm at the default 150% zoom
+
     const tools = screen.getByRole("toolbar", { name: "فهرست ابزارهای طراحی" });
     expect(within(tools).getAllByRole("button").map(button => button.textContent?.trim())).toEqual([
-      "انتخاب", "متن", "کد QR", "تصویر", "خط", "شکل", "جدول", "متغیر",
+      "انتخاب", "متن", "کد QR", "بارکد", "تصویر", "خط", "شکل", "متغیر",
     ]);
     await waitFor(() => expect(screen.getAllByRole("img", { name: /قالب/ })).toHaveLength(6));
   });

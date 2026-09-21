@@ -1,20 +1,51 @@
 import type { LabelTemplateRepository } from "../../repositories/label-template-repository";
 import { asUtcIsoString, type EntityId } from "../../types/persistence";
+import { LABEL_DOCUMENT_VERSION, LABEL_UNIT } from "../label-designer/label-document";
 import type {
   LabelTemplateDocument,
   LabelTemplateGateway,
   SavedLabelTemplateView,
 } from "./template-contract";
 
-const LAYOUT_VERSION = 1;
+const LAYOUT_VERSION = LABEL_DOCUMENT_VERSION;
 
+/**
+ * The stored layout is the canonical designer document: version, physical unit,
+ * label size and elements. Element JSON is written exactly as the editor holds
+ * it, so nothing is lost on the way to SQLite.
+ */
 const encodeLayout = (document: LabelTemplateDocument): string =>
   JSON.stringify({
-    version: LAYOUT_VERSION,
+    version: document.version ?? LAYOUT_VERSION,
+    unit: LABEL_UNIT,
     widthMm: document.widthMm,
     heightMm: document.heightMm,
     elements: [...document.elements],
   });
+
+type StoredLayout = Readonly<{
+  version?: number;
+  widthMm?: number;
+  heightMm?: number;
+  elements?: readonly Record<string, unknown>[];
+}>;
+
+/**
+ * A row written by an older build, or one that was corrupted outside the app,
+ * must not raise inside the designer. The raw text is preserved and the caller
+ * receives an empty layout it can report on.
+ */
+const decodeLayout = (layoutJson: string): StoredLayout => {
+  try {
+    const parsed: unknown = JSON.parse(layoutJson);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return Array.isArray(parsed) ? { elements: parsed as readonly Record<string, unknown>[] } : {};
+    }
+    return parsed as StoredLayout;
+  } catch {
+    return {};
+  }
+};
 
 const toView = (
   id: EntityId,
@@ -49,17 +80,14 @@ export class PersistenceTemplateGateway implements LabelTemplateGateway {
     const record = await this.repository.findActiveById(id);
     if (!record) return null;
 
-    const layout = JSON.parse(record.layoutJson) as {
-      widthMm?: number;
-      heightMm?: number;
-      elements?: readonly Record<string, unknown>[];
-    };
+    const layout = decodeLayout(record.layoutJson);
 
     return {
       name: record.name,
       templateKind: record.templateKind,
       widthMm: typeof layout.widthMm === "number" ? layout.widthMm : record.widthMm,
       heightMm: typeof layout.heightMm === "number" ? layout.heightMm : record.heightMm,
+      version: typeof layout.version === "number" ? layout.version : undefined,
       elements: Array.isArray(layout.elements) ? layout.elements : [],
     };
   }

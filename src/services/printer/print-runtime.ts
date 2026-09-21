@@ -5,10 +5,12 @@ import { createDefaultSettingsGateway } from "../settings/settings-gateway";
 import type { SettingsGateway } from "../settings/settings-contract";
 import {
   createDefaultLabelModel,
-  labelPrintModelFromTemplate,
+  resolveLabelPrintModel,
   type LabelPrintElement,
   type LabelPrintModel,
+  type LabelPrintResolution,
 } from "./label-print-model";
+import { EMPTY_LABEL_DATA_CONTEXT, type LabelDataContext } from "../label-designer/label-bindings";
 import {
   createPrinterService,
   inferPrinterFormat,
@@ -29,6 +31,15 @@ export type ProductLabelInput = Readonly<{
   productCode: string;
   purityPerMille?: number | null;
   weightMg?: number | null;
+  stoneWeightMg?: number | null;
+  productGroup?: string;
+  mainCategory?: string;
+  workshop?: string;
+  size?: string;
+  quantity?: number | null;
+  status?: string;
+  /** ISO-8601 registration timestamp, used by `product.date` bindings. */
+  createdAt?: string;
   copies?: number;
   /** Saved template to print; the default saved template is used when omitted. */
   templateId?: string | null;
@@ -46,6 +57,8 @@ export type TemplateLabelInput = Readonly<{
   copies?: number;
   productName?: string;
   productCode?: string;
+  /** Resolved data for the template's field bindings. */
+  context?: LabelDataContext;
 }>;
 
 /**
@@ -83,6 +96,23 @@ const withDetailLines = (model: LabelPrintModel, lines: readonly string[]): Labe
   lines.length === 0
     ? model
     : { ...model, elements: [...model.elements, ...lines.map((line, index) => extraLine(line, index))] };
+
+/** Everything a template binding can resolve when printing a product label. */
+export const productLabelContext = (input: ProductLabelInput): LabelDataContext => ({
+  ...EMPTY_LABEL_DATA_CONTEXT,
+  productName: input.productName,
+  productCode: input.productCode,
+  productGroup: input.productGroup ?? "",
+  mainCategory: input.mainCategory ?? "",
+  workshop: input.workshop ?? "",
+  purityPerMille: input.purityPerMille ?? null,
+  weightMg: input.weightMg ?? null,
+  stoneWeightMg: input.stoneWeightMg ?? null,
+  size: input.size ?? "",
+  quantity: input.quantity ?? null,
+  status: input.status ?? "",
+  date: input.createdAt ?? "",
+});
 
 export const createLabelPrintWorkflow = (
   dependencies: LabelPrintWorkflowDependencies = {},
@@ -129,49 +159,51 @@ export const createLabelPrintWorkflow = (
     copies?: number;
     productName?: string;
     productCode?: string;
-  }): Promise<LabelPrintModel> => {
+    context?: LabelDataContext;
+  }): Promise<LabelPrintResolution> => {
+    const fallback = (): LabelPrintResolution => ({
+      model: createDefaultLabelModel({
+        copies: input.copies,
+        productName: input.productName,
+        productCode: input.productCode,
+      }),
+      usedFallback: true,
+    });
+
     try {
       const gateway = await templateGateway();
       const templates = await gateway.listTemplates();
       const chosen = input.templateId
         ? templates.find(template => String(template.id) === String(input.templateId)) ?? null
         : templates.find(template => template.isDefault) ?? templates[0] ?? null;
-      if (chosen === null) {
-        return createDefaultLabelModel({
-          copies: input.copies,
-          productName: input.productName,
-          productCode: input.productCode,
-        });
-      }
+      if (chosen === null) return fallback();
 
       const document = await gateway.loadTemplate(chosen.id);
-      return labelPrintModelFromTemplate(
-        {
-          name: chosen.name,
-          widthMm: chosen.widthMm,
-          heightMm: chosen.heightMm,
-          layoutJson: JSON.stringify(document?.elements ?? []),
-        },
-        { copies: input.copies, productName: input.productName, productCode: input.productCode },
-      );
-    } catch {
-      // A broken template lookup must not block printing: the approved default
-      // layout is a safe, complete label.
-      return createDefaultLabelModel({
+      return resolveLabelPrintModel({
+        name: chosen.name,
+        widthMm: chosen.widthMm,
+        heightMm: chosen.heightMm,
+        layoutJson: JSON.stringify(document?.elements ?? []),
         copies: input.copies,
+        context: input.context,
         productName: input.productName,
         productCode: input.productCode,
       });
+    } catch {
+      // A broken template lookup must not block printing: the approved default
+      // layout is a safe, complete label.
+      return fallback();
     }
   };
 
   return {
     async printProductLabel(input: ProductLabelInput): Promise<PrintOutcome> {
-      const model = await resolveTemplateModel({
+      const resolution = await resolveTemplateModel({
         templateId: input.templateId,
         copies: input.copies ?? 1,
         productName: input.productName,
         productCode: input.productCode,
+        context: productLabelContext(input),
       });
 
       const details: string[] = [];
@@ -182,7 +214,9 @@ export const createLabelPrintWorkflow = (
         details.push(`وزن: ${formatWeightMg(input.weightMg)} g`);
       }
 
-      return send(withDetailLines(model, details));
+      // A template that carries its own elements already prints the product
+      // fields; only the approved default layout needs the extra detail lines.
+      return send(resolution.usedFallback ? withDetailLines(resolution.model, details) : resolution.model);
     },
 
     async printPackageLabel(input: PackageLabelInput): Promise<PrintOutcome> {
@@ -202,13 +236,14 @@ export const createLabelPrintWorkflow = (
     },
 
     async printTemplateLabel(input: TemplateLabelInput): Promise<PrintOutcome> {
-      const model = await resolveTemplateModel({
+      const resolution = await resolveTemplateModel({
         templateId: input.templateId,
         copies: input.copies ?? 1,
         productName: input.productName,
         productCode: input.productCode,
+        context: input.context,
       });
-      return send(model);
+      return send(resolution.model);
     },
 
     async testPrint(): Promise<PrintOutcome> {

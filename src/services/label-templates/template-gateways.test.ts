@@ -99,6 +99,7 @@ describe("PersistenceTemplateGateway", () => {
       templateKind: "product",
       widthMm: 50,
       heightMm: 30,
+      version: 1,
       elements: [{ type: "qr" }],
     });
   });
