@@ -101,7 +101,7 @@ jobs:
             foreach ($check in $checks) {
               $output = "$pwd\visual-checks\$($check.Name).png"
               $url = "http://127.0.0.1:4173/?page=$($check.Page)"
-              & $edge --headless --disable-gpu --hide-scrollbars --window-size=$($check.Size) --screenshot="$output" $url | Out-Null
+              & $edge --headless --disable-gpu --hide-scrollbars --virtual-time-budget=3000 --window-size=$($check.Size) --screenshot="$output" $url | Out-Null
               for ($wait = 0; $wait -lt 30 -and !(Test-Path $output); $wait++) {
                 Start-Sleep -Milliseconds 500
               }
