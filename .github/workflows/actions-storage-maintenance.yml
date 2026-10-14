@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
-      DRY_RUN: 'true'
+      DRY_RUN: 'false'
     steps:
       - name: Inventory old duplicate artifacts while preserving recent output for each branch
         shell: bash
