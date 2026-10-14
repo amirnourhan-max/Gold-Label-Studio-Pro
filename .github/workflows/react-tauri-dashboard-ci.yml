@@ -132,6 +132,7 @@ jobs:
         with:
           name: Gold-Label-Studio-Pro-Visual-Checks
           path: visual-checks/*.png
+          retention-days: 3
 
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --all-features
@@ -448,6 +449,7 @@ jobs:
         with:
           name: Gold-Label-Studio-Pro-Windows-Setup-MSI
           path: src-tauri/target/release/bundle/msi/*.msi
+          retention-days: 14
 
       - name: Upload Windows NSIS installer
         if: success()
@@ -455,6 +457,7 @@ jobs:
         with:
           name: Gold-Label-Studio-Pro-Windows-Setup-NSIS
           path: src-tauri/target/release/bundle/nsis/Gold Label Studio Pro_0.2.2_x64-setup.exe
+          retention-days: 14
 
       - name: Upload installed-app diagnostics
         if: always()
@@ -466,6 +469,7 @@ jobs:
             ${{ runner.temp }}/glsp-acceptance-*.json
             ${{ env.LOCALAPPDATA }}/com.amirnourhan.goldlabelstudiopro/logs/*.jsonl
           if-no-files-found: ignore
+          retention-days: 3
 
       - name: Upload Windows preview
         if: success()
@@ -473,3 +477,4 @@ jobs:
         with:
           name: Gold-Label-Studio-Pro-React-Tauri-Preview
           path: src-tauri/target/release/gold-label-studio-pro.exe
+          retention-days: 7
