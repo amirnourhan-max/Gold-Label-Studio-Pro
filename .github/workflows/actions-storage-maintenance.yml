@@ -1,0 +1,92 @@
+name: One-time Gold Label artifact storage maintenance
+on:
+  push:
+    branches: [actions-storage-maintenance-20261014]
+    paths: [.github/workflows/actions-storage-maintenance.yml]
+permissions:
+  actions: write
+  contents: read
+jobs:
+  storage-maintenance:
+    if: github.repository == 'amirnourhan-max/Gold-Label-Studio-Pro'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DRY_RUN: 'true'
+    steps:
+      - name: Inventory old duplicate artifacts while preserving recent output for each branch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import collections
+          import datetime
+          import json
+          import os
+          import sys
+          import time
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          assert repo == 'amirnourhan-max/Gold-Label-Studio-Pro'
+          base = 'https://api.github.com/repos/' + repo + '/actions/artifacts'
+          headers = {
+              'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+          }
+          def api(url, method='GET'):
+              req = urllib.request.Request(url, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=35) as response:
+                  body = response.read()
+                  return json.loads(body) if body else None
+          all_artifacts = []
+          for page in range(1, 35):
+              batch = api(base + '?per_page=100&page=' + str(page))['artifacts']
+              all_artifacts.extend(batch)
+              if len(batch) < 100:
+                  break
+          groups = collections.defaultdict(list)
+          for a in all_artifacts:
+              if not a['expired']:
+                  branch = (a.get('workflow_run') or {}).get('head_branch') or 'unknown'
+                  groups[(a['name'], branch)].append(a)
+          for group in groups.values():
+              group.sort(key=lambda a: (a['created_at'], a['id']), reverse=True)
+          now = datetime.datetime.now(datetime.timezone.utc)
+          delete = []
+          retained = 0
+          for (name, branch), group in sorted(groups.items()):
+              if name.startswith('Gold-Label-Studio-Pro-'):
+                  keep_count = 2 if any(t in name for t in ('Setup-MSI', 'Setup-NSIS')) else 1
+              else:
+                  keep_count = len(group)
+              retained += min(len(group), keep_count)
+              for a in group[keep_count:]:
+                  created = datetime.datetime.fromisoformat(a['created_at'].replace('Z', '+00:00'))
+                  if now - created < datetime.timedelta(hours=48):
+                      retained += 1
+                  else:
+                      delete.append(a)
+              print('GROUP', name, branch, 'total', len(group), 'keep', min(len(group), keep_count))
+          size_before = sum(a['size_in_bytes'] for group in groups.values() for a in group)
+          size_delete = sum(a['size_in_bytes'] for a in delete)
+          print('SUMMARY total=',len(all_artifacts),'active_bytes=',size_before,'delete_count=',len(delete),'reclaimable_bytes=',size_delete,'protected=',retained)
+          if os.environ['DRY_RUN'].lower() != 'false':
+              print('DRY RUN ONLY: nothing deleted')
+              sys.exit(0)
+          errors = []
+          deleted = 0
+          for a in delete:
+              try:
+                  api(base + '/' + str(a['id']), 'DELETE')
+                  deleted += 1
+                  print('DELETED', a['id'], a['name'], a['size_in_bytes'])
+              except Exception as e:
+                  errors.append(str(a['id']) + ':' + str(e))
+                  print('DELETE FAILED', a['id'], str(e))
+              time.sleep(0.25)
+          print('RESULT deleted=',deleted,'failed=',len(errors),'reclaimed_bytes=',size_delete)
+          if errors:
+              sys.exit(1)
+          PY
